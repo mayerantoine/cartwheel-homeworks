@@ -18,6 +18,8 @@ They are marked xfail and flip to passing as you implement each function.
 
 from __future__ import annotations
 
+import re
+from difflib import SequenceMatcher
 from typing import Any
 
 from agent import db
@@ -27,6 +29,25 @@ from agent.killswitch import kill_switch
 
 MAX_SEARCH_LIMIT = 25
 DEFAULT_ORDER_LIMIT = 20
+FUZZY_MATCH_THRESHOLD = 0.5
+
+_WORD_RE = re.compile(r"[a-z0-9]+")
+
+
+def _product_match_score(query: str, title: str) -> float:
+    """Score a product title against a natural-language order query."""
+    query_text = " ".join(_WORD_RE.findall(query.casefold()))
+    title_text = " ".join(_WORD_RE.findall(title.casefold()))
+    if not query_text or not title_text:
+        return 0.0
+    if query_text in title_text or title_text in query_text:
+        return 1.0
+
+    query_tokens = set(query_text.split())
+    title_tokens = set(title_text.split())
+    token_overlap = len(query_tokens & title_tokens) / len(title_tokens)
+    sequence_similarity = SequenceMatcher(None, query_text, title_text).ratio()
+    return max(token_overlap, sequence_similarity)
 
 
 def get_policy(ctx: AuthContext, policy_id: str) -> dict[str, Any]:
@@ -297,5 +318,38 @@ def find_order(ctx: AuthContext, query: str) -> dict[str, Any]:
         (at most 5), each as the dict returned by agent.db. If no orders
         match, return {"ok": True, "orders": []}.
     """
-    ### YOUR CODE HERE (HW1)
-    raise NotImplementedError("HW1: implement find_order")
+    if not query.strip():
+        return {"ok": True, "orders": []}
+
+    with db.connection() as conn:
+        if ctx.role == "shopper":
+            orders = db.list_orders_for_user(conn, ctx.user_id, limit=None)
+        elif ctx.role == "merchant":
+            orders = db.list_orders_for_store(conn, ctx.store_id, limit=None)
+        else:
+            orders = db.list_all_orders(conn)
+
+        product_titles = {
+            product.id: product.title for product in db.list_products(conn)
+        }
+
+    matches = []
+    for order in orders:
+        title = product_titles.get(order.product_id)
+        if title is None:
+            continue
+        score = _product_match_score(query, title)
+        if score >= FUZZY_MATCH_THRESHOLD:
+            matches.append((score, order))
+
+    matches.sort(
+        key=lambda match: (
+            -match[0],
+            -match[1].ordered_at.toordinal(),
+            -match[1].id,
+        )
+    )
+    return {
+        "ok": True,
+        "orders": [order.to_public_dict() for _, order in matches[:5]],
+    }

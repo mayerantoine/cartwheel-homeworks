@@ -158,21 +158,41 @@ def _store_from_row(row: sqlite3.Row) -> Store:
 
 
 def list_orders_for_user(
-    conn: sqlite3.Connection, user_id: int, limit: int = 20
+    conn: sqlite3.Connection, user_id: int, limit: int | None = 20
 ) -> list[Order]:
-    rows = conn.execute(
-        "SELECT * FROM orders WHERE user_id = ? ORDER BY ordered_at DESC, id DESC LIMIT ?",
-        (user_id, limit),
-    ).fetchall()
+    if limit is None:
+        rows = conn.execute(
+            "SELECT * FROM orders WHERE user_id = ? ORDER BY ordered_at DESC, id DESC",
+            (user_id,),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM orders WHERE user_id = ? ORDER BY ordered_at DESC, id DESC LIMIT ?",
+            (user_id, limit),
+        ).fetchall()
     return [_order_from_row(row) for row in rows]
 
 
 def list_orders_for_store(
-    conn: sqlite3.Connection, store_id: int, limit: int = 20
+    conn: sqlite3.Connection, store_id: int, limit: int | None = 20
 ) -> list[Order]:
+    if limit is None:
+        rows = conn.execute(
+            "SELECT * FROM orders WHERE store_id = ? ORDER BY ordered_at DESC, id DESC",
+            (store_id,),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM orders WHERE store_id = ? ORDER BY ordered_at DESC, id DESC LIMIT ?",
+            (store_id, limit),
+        ).fetchall()
+    return [_order_from_row(row) for row in rows]
+
+
+def list_all_orders(conn: sqlite3.Connection) -> list[Order]:
+    """Return every order, newest first, for support-scoped searches."""
     rows = conn.execute(
-        "SELECT * FROM orders WHERE store_id = ? ORDER BY ordered_at DESC, id DESC LIMIT ?",
-        (store_id, limit),
+        "SELECT * FROM orders ORDER BY ordered_at DESC, id DESC"
     ).fetchall()
     return [_order_from_row(row) for row in rows]
 

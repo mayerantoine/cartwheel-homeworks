@@ -52,8 +52,20 @@ def get_policy(ctx: AuthContext, policy_id: str) -> dict[str, Any]:
     Implementation notes:
         agent.helpcenter.load_policy_docs() returns every parsed doc.
     """
-    ### YOUR CODE HERE (HW1)
-    raise NotImplementedError("HW1: implement get_policy")
+    for doc in load_policy_docs():
+        if doc.policy_id == policy_id:
+            return {
+                "ok": True,
+                "policy_id": doc.policy_id,
+                "title": doc.title,
+                "audience": doc.audience,
+                "body": doc.body,
+            }
+    return {
+        "ok": False,
+        "error": "not_found",
+        "reason": f"no policy with id '{policy_id}'",
+    }
 
 
 def search_products(

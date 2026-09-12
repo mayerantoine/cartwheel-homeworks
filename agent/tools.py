@@ -107,8 +107,55 @@ def search_products(
         agent.db.list_products(conn, store_id) gives the candidate set.
         Use `with db.connection() as conn:` to close the database automatically.
     """
-    ### YOUR CODE HERE (HW1)
-    raise NotImplementedError("HW1: implement search_products")
+    query = query.strip()
+    if not query:
+        return {
+            "ok": False,
+            "error": "invalid_argument",
+            "reason": "product search query must not be empty",
+        }
+    if max_price_usd is not None and max_price_usd <= 0:
+        return {
+            "ok": False,
+            "error": "invalid_argument",
+            "reason": "maximum price must be positive",
+        }
+
+    result_limit = max(1, min(limit, MAX_SEARCH_LIMIT))
+    query_tokens = query.casefold().split()
+
+    with db.connection() as conn:
+        store_id = None
+        if store is not None:
+            matched_store = db.get_store_by_name(conn, store)
+            if matched_store is None:
+                return {
+                    "ok": False,
+                    "error": "not_found",
+                    "reason": f"no store named '{store}'",
+                }
+            store_id = matched_store.id
+
+        matches = []
+        for product in db.list_products(conn, store_id):
+            searchable_text = f"{product.title} {product.description}".casefold()
+            if not all(token in searchable_text for token in query_tokens):
+                continue
+            if max_price_usd is not None and product.price_usd > max_price_usd:
+                continue
+            matches.append(product)
+
+    matches.sort(key=lambda product: (product.price_usd, product.id))
+    products = [
+        {
+            "product_id": product.id,
+            "store_id": product.store_id,
+            "title": product.title,
+            "price_usd": product.price_usd,
+        }
+        for product in matches[:result_limit]
+    ]
+    return {"ok": True, "products": products, "count": len(products)}
 
 
 def list_my_orders(ctx: AuthContext) -> dict[str, Any]:

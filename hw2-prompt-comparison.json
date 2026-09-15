@@ -1,0 +1,16 @@
+{
+  "request": "Show me order 4127. Is it eligible for a refund?",
+  "role": "shopper",
+  "user_id": 1,
+  "run_1": {
+    "label": "revised prompt (ESC-2 escalation line added)",
+    "prompt_version": "566bc90d3ee1",
+    "session_id": "6fe0e4493e714131947eeb7af66cbb35"
+  },
+  "run_2": {
+    "label": "original Homework 1 prompt",
+    "prompt_version": "d108f6949e5e",
+    "session_id": "3b0d2c4e88f64ff4afa030f6ac644286"
+  },
+  "versions_differ": true
+}

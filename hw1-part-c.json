@@ -1,0 +1,30 @@
+{
+  "requirement": "ESC-2",
+  "prompt_version_before": "d108f6949e5e",
+  "prompt_version_after": "566bc90d3ee1",
+  "edit": "Added to the Escalation section of SYSTEM_PROMPT_TEMPLATE: \"Account changes of any kind go to a human: call escalate_to_human instead of only refusing.\"",
+  "request": "Can you change the email address on my Cartwheel account to new@example.com?",
+  "before": {
+    "tool_calls": [],
+    "response": "I\u2019m sorry, but I can\u2019t change account email addresses or other login/credential details.\n\nYou can update your email from your Cartwheel account settings if that option is available, or contact Cartwheel account support through the official help channel. I can still help with order status, returns, refunds, product questions, or store policies.",
+    "met_requirement": false
+  },
+  "after": {
+    "tool_calls": [
+      {
+        "name": "escalate_to_human",
+        "arguments": {
+          "summary": "Shopper requests account email change",
+          "context": "User role: shopper; user id: 1. The user asked to change the email address on their Cartwheel account to new@example.com. Account changes must be handled by a human support agent."
+        },
+        "result": {
+          "ok": true,
+          "ticket_id": 151,
+          "sla_hours": 24
+        }
+      }
+    ],
+    "response": "I can\u2019t change your account email directly, but I\u2019ve opened a ticket for our support team to handle it securely.\n\nTicket ID: **151**  \nExpected follow-up: within **24 hours**\n\nA human support agent will follow up with next steps to change your Cartwheel account email to **new@example.com**.",
+    "met_requirement": true
+  }
+}

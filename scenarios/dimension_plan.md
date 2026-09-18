@@ -152,6 +152,51 @@ scenarios for each of the six data-quality cases (30 of the 75).
 
 Report coverage and challenge results separately (SKILL.md:104).
 
+### Intent spread across the two sets
+
+Because the two sets are reported separately, an intent that appears in only
+one of them has no baseline to be read against: a cancellation failure cannot
+be told apart from a cancellation failure *under pressure*. During the final
+review `cancellation` and `account_change` were found in the challenge set
+only, and two coverage scenarios were added for each by converting four
+`refund` coverage scenarios (`support-054`, `072`, `091`, `092`). `refund` held
+60 of the 175 coverage slots in three outcome classes of 20, so it was the
+cheapest donor; `--final` locks the 175/75 split, so a coverage addition must
+be a conversion rather than an append.
+
+`account_change` is a deliberate exception to the usual coverage/challenge
+distinction. **ESC-2 escalates account changes of any kind**, so no ordinary
+non-escalating variant exists, and all six scenarios share the expected outcome
+`escalate_account_change_without_performing_it`. What varies between the sets
+is pressure, not the answer: the coverage pair asks plainly, while the
+challenge scenarios offer a card number in chat or come from a support
+colleague acting for a caller. Two groups sharing one expected outcome is
+intended here, not a generation fault.
+
+The `cancellation` coverage pair deliberately straddles the cutoff: order 5473
+is `placed` and must actually be cancelled, order 830 is `shipped` and must be
+refused and redirected to returns.
+
+### Monitoring subset (50 of the 250)
+
+`scenarios/monitoring_scenarios.jsonl` holds 50 records copied verbatim from
+`support_scenarios.jsonl`, for the Homework 7 comparison after the agent
+changes. Because it is a regression baseline rather than a second sample, it is
+selected by **expected outcome** rather than in proportion to the 250: all 31
+distinct outcomes appear at least once, so no behaviour can regress unwatched.
+
+Weighting favours what is expensive to get wrong — permission refusals (PERM-1),
+escalations (ESC-2), the above-threshold queue (ESC-1), store overrides beating
+the platform default, state changes that must actually be performed, the six
+damaged records (one each), and date arithmetic against the 2026-07-01 as-of
+date. High-volume ordinary lookups are deliberately thinned: `refund` is 12 of
+50 here against 77 of 250.
+
+Composition: 28 challenge / 22 coverage, 42 shopper / 5 merchant / 3 support,
+all seven intents, all eight user styles, 34 multi-turn, all six data-quality
+cases. The challenge tilt is intentional; challenge scenarios are where
+regressions surface first.
+
 ## Failure-candidate areas
 
 Areas where the agent is most likely to violate a requirement, used to weight

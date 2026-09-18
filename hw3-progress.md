@@ -3,7 +3,11 @@
 Branch: `hw3` (from `hw2`). Model for every run: `gpt-5.5` (`CARTWHEEL_MODEL`).
 Database as-of date: **2026-07-01**. Money is stored in cents.
 
-Last commit: `0d4e221` feat(hw3): add Part A dimension plan and 50-scenario pilot.
+Last commit: `fac0bd0` feat(hw3): complete Part C review, revisions, and
+monitoring set.
+
+**Parts A, B and C are complete. Part D is next and is the first step that
+spends money.**
 
 ## Deliverable checklist
 
@@ -12,25 +16,39 @@ Last commit: `0d4e221` feat(hw3): add Part A dimension plan and 50-scenario pilo
 | 1 | `scenarios/pilot_scenarios.jsonl` | B | done, committed |
 | 2 | `scenarios/pilot-results.jsonl` | B | done, committed |
 | 3 | `scenarios/pilot_review.jsonl` | B | done, 11 records, 8 confirmed failures |
-| 4 | `scenarios/support_scenarios.jsonl` | C | generated, **student review gate incomplete** |
-| 5 | `scenarios/support_review.jsonl` | C | not started |
-| 6 | `scenarios/monitoring_scenarios.jsonl` | C | not started |
+| 4 | `scenarios/support_scenarios.jsonl` | C | done, 250 records, validator clean |
+| 5 | `scenarios/support_review.jsonl` | C | done, 42 records, 23 accept / 19 revise |
+| 6 | `scenarios/monitoring_scenarios.jsonl` | C | done, 50 records |
 | 7 | `scenarios/final-results.jsonl` | D | not started |
 | 8 | `reports/smoke-output.txt` | E | not started |
 | 9 | `traces/support_traces.json` | E | not started |
 
 The video and all review judgements are the student's work, not the agent's.
 
+Every check recorded below ran **offline** against `data/cartwheel.db`. No
+model calls have been made since the 50-scenario pilot. Part D is the first
+time the agent's behaviour meets these answer keys, so some expected outcomes
+may prove arguable in ways static verification cannot reveal.
+
 ## Environment state
 
+Checked 2026-09-18, after the Part C commit:
+
 - Cartwheel server on port 8010 (`uv run uvicorn server.app:app --port 8010`).
-  Needed for Parts C, D, and E. Both this and Langfuse stop when the machine
-  sleeps or restarts, so verify before Part D rather than assuming.
-  Check with `curl -s -o /dev/null -w '%{http_code}' http://localhost:8010/health`.
+  Needed for Parts C, D, and E. **Up**, returns 200.
 - Six Langfuse containers
-  (`docker compose -f observability/docker-compose.yml up -d`). Needed through Part E.
-  Check with `curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/api/public/health`,
-  which returns 200 when ready.
+  (`docker compose -f observability/docker-compose.yml up -d`). Needed through
+  Part E. **Down**, the health check returns no response. Start them and wait
+  for a 200 before Part D, or the run will make 250 model calls whose traces
+  are never recorded, and Part E will have nothing to export.
+
+  ```bash
+  curl -s -o /dev/null -w '%{http_code}' http://localhost:8010/health
+  curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/api/public/health
+  ```
+
+  Both stop when the machine sleeps or restarts, so recheck immediately before
+  the run rather than trusting this note.
 - Database is **not** in seeded state after the pilot. Part D requires
   `uv run python -m seed.generate` immediately before the final run.
 - `.sessions.db-shm` and `.sessions.db-wal` are untracked runtime scratch files,
@@ -220,47 +238,167 @@ policy identifiers, internal flags or expected outcomes.
   ignores extra fields so nothing caught it. Now 207 single-ask, 38 two-ask,
   5 three-ask.
 
-### Review gate
+### Review gate, satisfied
 
-`scenarios/skill/SKILL.md` step 6 reserves the conversation review for the
-student. Four scenarios were walked (`support-001`, `031`, `047`, `070`) before
-the order-id decision caused every scenario to be rewritten, so **those four
-reviews are stale and the gate is not satisfied**. A fresh sample must be
-reviewed before Part D runs anything.
+The four stale walkthroughs (`support-001`, `031`, `047`, `070`) were discarded
+and **30 scenarios were reviewed across two fresh, non-overlapping samples of
+15**, against the handout's requirement of 15. Each sample spans both scenario
+groups, all three roles and every intent; together they cover all six
+documented data-quality cases. Rulings are in `scenarios/support_review.jsonl`:
+42 records, 23 `accept` / 19 `revise`.
 
-### Composition
+Every ruling was checked against `data/cartwheel.db` rather than read off the
+scenario prose. All 19 revisions are applied, and the applied set was verified
+to match the rulings exactly in both directions: no record changed without a
+ruling, no ruling left unapplied.
+
+### Defects found and fixed during the review
+
+1. **Ungrounded followups, 11 records.** Two stock followup strings had been
+   copied onto hosts whose data cannot answer them: *"same address i had
+   before"* (neither `users` nor `orders` has an address column) and *"was
+   anything else sent with it"* (each order row holds exactly one
+   `product_id`). After the first two turned up in sampling, a sweep of all 22
+   reused followup strings found every remaining instance. Replacements are
+   grounded in each host's own record, and no two share a string, so no new
+   stock cluster was created. Distinct followups rose from 22 to 28.
+
+   The sweep is a text check and costs nothing: only 74 of the 250 scenarios
+   have followups at all.
+
+2. **`support-249` spoke in the wrong voice.** Role `support`, but the opening
+   read as the shopper (*"my classic tea sampler"*) while the followup said
+   *"they're pressing on"*. Its tuple also recorded `platform_rule` while the
+   answer key applied the Saltbox Pantry 7-day override. Both corrected.
+
+3. **`support-206` contradicted the pilot.** It asked a yes/no question against
+   a state-changing expected outcome, the exact conflict ruled on in
+   `pilot-021`, where queuing an unrequested refund was judged *worse*
+   behaviour. Rewritten to request the return outright, keeping order 2041's
+   day-30 boundary, which is the scarce part of that record.
+
+4. **`support-190` and `support-202`** carried followups that presupposed facts
+   their own damaged records contradict.
+
+### Coverage-set intent gap, closed
+
+`cancellation` and `account_change` existed only in the challenge set, leaving
+no ordinary baseline: a cancellation failure could not be told apart from a
+cancellation failure *under pressure*. Four over-represented `refund` coverage
+scenarios were converted (`support-054`, `072`, `091`, `092`). `validate.py`
+`--final` locks the 175/75 split, so a coverage addition must be a conversion,
+never an append.
+
+`account_change` is a deliberate exception: **ESC-2 escalates account changes
+of any kind**, so no ordinary non-escalating variant exists and all six share
+one expected outcome. What varies across the groups is pressure, not the
+answer. Recorded in `dimension_plan.md` so it does not later read as a
+generation fault.
+
+An earlier note in this file claimed `dispute` was also missing from the
+coverage set. That was wrong: `dispute` has 8 coverage scenarios.
+
+### Composition, after the Part C revisions
 
 | Dimension | Spread |
 | --- | --- |
 | group | 175 coverage / 75 challenge |
 | role | 217 shopper / 19 merchant / 14 support |
 | difficulty | 166 well_specified / 30 missing_information / 30 boundary / 24 ambiguous |
-| subquestion_count | 207 one / 38 two / 5 three |
-| turns | 175 single / 75 multi-turn |
-| intent | refund 81, order_status 73, policy_question 52, product_search 25, dispute 9, cancellation 6, account_change 4 |
+| turns | 176 single / 74 multi-turn |
+| subquestion_count | 208 one / 37 two / 5 three |
+| intent | refund 77, order_status 73, policy_question 52, product_search 25, dispute 9, cancellation 8, account_change 6 |
+| coverage intents | order_status 65, refund 56, policy_question 32, product_search 10, dispute 8, cancellation 2, account_change 2 |
+| challenge intents | refund 21, policy_question 20, product_search 15, order_status 8, cancellation 6, account_change 4, dispute 1 |
 
-All eight `user_style` values appear between 26 and 35 times.
+All eight `user_style` values appear between 26 and 35 times. Every intent now
+appears in both sets.
+
+### Monitoring subset
+
+`scenarios/monitoring_scenarios.jsonl` holds 50 records copied **verbatim**
+from `support_scenarios.jsonl`, verified byte-identical, because Homework 7
+reruns the same requests after the agent changes.
+
+It is selected by **expected outcome** rather than in proportion to the 250,
+because it is a regression baseline: all 31 distinct outcomes appear at least
+once, so no behaviour can regress unwatched. Weighting favours what is
+expensive to get wrong, permission refusals, escalations, the above-threshold
+queue, store overrides, state changes, the six damaged records and
+as-of-date arithmetic. Ordinary lookups are thinned: `refund` is 12 of 50 here
+against 77 of 250.
+
+Composition: 28 challenge / 22 coverage, 42 shopper / 5 merchant / 3 support,
+all seven intents, all eight styles, 34 multi-turn, all six data-quality cases.
+The challenge tilt is intentional; challenge scenarios are where regressions
+surface first.
 
 ## Next steps
 
-1. **Part C, remaining.** Review a fresh sample of scenarios with the student,
-   record the judgements in `scenarios/support_review.jsonl`, and build the
-   50-scenario `scenarios/monitoring_scenarios.jsonl`, then revalidate with
-   `--final`. The 250-scenario file itself is done.
+1. **Part D.** Check the environment first, because the server and Langfuse
+   both stop when the machine sleeps:
 
-2. **Part D.** Reseed with `uv run python -m seed.generate` immediately before
-   the run, or the results will not match the answer keys. Then run all 250
-   (about 35 minutes, a few dollars) and confirm every record has status
-   `completed`.
+   ```bash
+   curl -s -o /dev/null -w '%{http_code}' http://localhost:8010/health
+   curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/api/public/health
+   ```
 
-3. **Part E.** Run `reports/smoke.sql` against ClickHouse into
+   Then reseed, which is **not optional**: the pilot cancelled and refunded
+   real orders, and 57 of the 250 scenarios expect a specific order state.
+
+   ```bash
+   uv run python -m seed.generate
+
+   uv run python -m scenarios.runner scenarios/support_scenarios.jsonl \
+     --model gpt-5.5 --output scenarios/final-results.jsonl
+   ```
+
+   About 35 minutes and a few dollars. Then confirm every record has status
+   `completed`, and summarise the coverage and challenge sets separately:
+
+   ```bash
+   jq -s 'group_by(.status) | map({status: .[0].status, count: length})' \
+     scenarios/final-results.jsonl
+   ```
+
+   Rerun only what failed with `--resume`, or named ids with
+   `--ids support-153,support-201`. A rerun does not reset the data, so before
+   rerunning a refund or cancellation scenario, check the first attempt did not
+   already change the order. All 57 state-changing scenarios sit on distinct
+   orders, so no scenario can be spoiled by another's mutation within one run.
+
+2. **Part E.** Run `reports/smoke.sql` against ClickHouse into
    `reports/smoke-output.txt`, export traces to `traces/support_traces.json`,
    and open three traces to confirm the conversation, model, tool activity, and
-   `cartwheel_scenario_id`.
+   `cartwheel_scenario_id`. Include one challenge scenario and one multi-turn
+   scenario.
 
-4. **Video.** Five minutes maximum, recorded by the student.
+3. **Video.** Five minutes maximum, recorded by the student. The handout asks
+   for a failed pilot scenario with its evidence, a revised final scenario,
+   one complete final trace, and the scenario-id count. For the revised
+   scenario, `support-249` and `support-206` are the clearest to narrate: both
+   have a defect that is visible on screen and a recorded reason in
+   `support_review.jsonl`.
 
-## Corrections, applied 2026-09-18
+## Open questions for Part D
+
+- **Expected outcomes are verified against the database, not against
+  behaviour.** Static checks cannot tell whether an expected outcome is
+  *reasonable*, only whether it matches the record. The pilot showed this
+  matters: `pilot-021` was ruled not-a-failure only after seeing what the agent
+  actually did. Expect a few Part D results to raise the same question.
+- **The two failure patterns from the pilot are unaddressed by design.** The
+  agent used the wall-clock date instead of the 2026-07-01 as-of date, and
+  explained policy correctly without acting. Many final expected reasons now
+  state both requirements explicitly, so Part D will show whether that
+  phrasing changes the agent's behaviour or merely documents the expectation.
+
+## Corrections to the pilot files, applied 2026-09-18
+
+This section covers the **pilot** files only, `pilot_scenarios.jsonl` and
+`pilot_review.jsonl`. The Part C revisions to `support_scenarios.jsonl` were
+made the same day and are recorded above, under "Defects found and fixed during
+the review".
 
 All three `scenario_change` entries in `pilot_review.jsonl` have been applied
 and each record carries an `APPLIED` note. Only `expected.reason` changed in

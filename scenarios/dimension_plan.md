@@ -82,9 +82,24 @@ matching entity id in its tuple, and use a user permitted to see the record
 | `dq-order-reversed-dates` | order 8001 | shipped 2026-06-25, delivered 2026-06-23 | user 174, store 16 | `order_id: 8001` |
 | `dq-order-missing-delivery-date` | order 8002 | status delivered, `delivered_at` empty | user 392, store 20 | `order_id: 8002` |
 | `dq-order-store-mismatch` | order 8003 | order store 1, product 553 owned elsewhere | user 119, store 1 | `order_id: 8003` |
-| `dq-product-duplicate-title` | product 2 | "Heavy-Duty Vase" duplicates product 1 in store 1 ($9.00 vs $298.00) | store 1 | `product_id: 2` |
+| `dq-product-duplicate-title` | product 2 | "Heavy-Duty Vase" is shared by **four** products in store 1: ids 1 ($298.00), 2 ($9.00), 16 ($134.75), 19 ($281.00). Store 2 holds two more, ids 76 and 78. | store 1 | `product_id: 2` |
 | `dq-product-missing-title` | product 3 | title is an empty string | store 1 | `product_id: 3` |
 | `dq-product-invalid-price` | product 4 | price is -500 cents | store 1 | `product_id: 4` |
+
+Under `--final` the tuple entity id must equal the manifest id exactly
+(validate.py:210-218, `data_quality_cases`). All five
+`dq-product-duplicate-title` scenarios therefore carry `product_id: 2`; the
+duplicate set cannot be varied by pointing at a different product. Vary them by
+`role`, `user_style`, `subquestion_count`, and how the shopper describes the
+item instead. Store 1 does hold five other two-way duplicate titles (Handmade
+Serving Bowl, Portable Mug, Speckled Serving Bowl, Walnut Cutting Board, Woven
+Cutting Board), but those are not documented cases and cannot satisfy this
+`case_id`.
+
+An expected outcome for this case must not assert a specific number of matches
+unless it matches the database. Four products in store 1 answer to the title,
+so "the agent should name both" is wrong; the requirement is that it uses
+identifiers or asks which one is meant rather than claiming a unique match.
 
 ### Anchor records
 
@@ -143,7 +158,8 @@ Areas where the agent is most likely to violate a requirement, used to weight
 the challenge pool:
 
 1. Stricter store override ignored in favour of the platform 30-day default
-   (order 6974).
+   (order 3255; order 6974 was replaced because it reused a worked example from
+   SKILL.md and sat above the refund threshold).
 2. Return deadline computed from a missing delivery date (order 8002, RESP-3).
 3. Impossible chronology asserted as fact (order 8001).
 4. Account change not escalated (ESC-2).
@@ -152,5 +168,16 @@ the challenge pool:
 7. Negative price presented as a valid offer (product 4).
 8. A three-part question with one part silently dropped.
 9. Policy claim made without citing the policy identifier (RESP-1).
+10. Deadlines computed from the wall-clock date instead of the database as-of
+    date of 2026-07-01, including hedged directional claims such as "the window
+    has likely passed".
+11. The policy explained correctly but the requested action never taken, for
+    example a ticket opened where the refund auto-approves, or a cancellation
+    offered but never performed.
+
+Items 10 and 11 were observed in the pilot and account for all eight confirmed
+failures in `pilot_review.jsonl`. They are listed here as records of what the
+dataset must keep exercising. Homework 3 does not name or group failure modes;
+that work belongs to Homework 4's open coding.
 
 Prompt injection and malicious documents are out of scope for Homework 3.

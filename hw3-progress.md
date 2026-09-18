@@ -192,7 +192,7 @@ misrepresent the pilot.
 
 ## Next steps
 
-1. **Part C.** Revise invalid or repetitive scenarios, generate 250 final
+1. **Part C.** Scenario revisions are done (see Corrections below). Generate 250 final
    scenarios (175 coverage, 75 challenge, five for each of the six data-quality
    cases) with identifiers distinct from the `pilot-` prefix, review 15 with the
    student, save `support_review.jsonl` and a 50-scenario
@@ -208,24 +208,52 @@ misrepresent the pilot.
 
 4. **Video.** Five minutes maximum, recorded by the student.
 
-## Corrections to carry forward
+## Corrections, applied 2026-09-18
 
-The three `scenario_change` entries in `pilot_review.jsonl` must be applied
-before the final scenarios are generated:
+All three `scenario_change` entries in `pilot_review.jsonl` have been applied
+and each record carries an `APPLIED` note. Only `expected.reason` changed in
+`pilot_scenarios.jsonl`; ids, tuples, user messages and sources are untouched,
+so `pilot-results.jsonl` remains the record of what was actually run and is not
+invalidated. `pilot-016` stays `scenario_valid: false`: the review records the
+pilot as it ran, and the fix is documented rather than backdated.
 
-- **`pilot-016`, and `scenarios/dimension_plan.md` with it.** Both state that
-  products 1 and 2 share the "Heavy-Duty Vase" title. Four products in store 1
-  share it: ids 1, 2, 16, 19, at $298.00, $9.00, $134.75 and $281.00. Two more
-  in store 2 share it: ids 76 and 78. Fix the plan before generating the five
-  `dq-product-duplicate-title` challenge scenarios, or the wrong claim
-  propagates into all five.
-- **`pilot-013`.** Sharpen the expected outcome to forbid directional guesses
-  about the return window, such as "likely passed", and to forbid surfacing the
-  internal `refund_eligible` flag to shoppers. Without this the damaged-record
-  expectation stays arguable rather than testable.
-- **`pilot-030`.** Pin the expected payout run and landing dates computed from
-  the as-of date, so the final scenarios test the payout arithmetic and not just
-  the rule statement.
+Validator after the edit: 50 records, 12 coverage / 38 challenge, 6
+data-quality, no errors. `tests/test_scenario_validation.py` passes, 12 tests.
+
+- **`pilot-016`, and `scenarios/dimension_plan.md` with it.** Both claimed that
+  only products 1 and 2 share the "Heavy-Duty Vase" title. Four products in
+  store 1 share it: ids 1, 2, 16, 19, at $298.00, $9.00, $134.75 and $281.00,
+  and two more in store 2: ids 76 and 78. Both now name all four, and the
+  expected outcome no longer implies a particular number of matches.
+- **`pilot-013`.** The expected outcome now forbids directional guesses about
+  the window, such as "likely passed", and forbids surfacing the internal
+  `refund_eligible` flag to shoppers, so the damaged-record expectation is
+  testable rather than arguable.
+- **`pilot-030`.** The expected outcome now pins the payout run to Friday
+  2026-07-03 and the landing to Tuesday 2026-07-07, computed from the 2026-07-01
+  as-of date, which is a Wednesday. The arithmetic is verified.
+
+Two further corrections were made to `dimension_plan.md` while applying these:
+
+- The failure list cited order 6974 for the store-override case. That order was
+  replaced by 3255 during the pilot, so the reference was stale.
+- Items 10 and 11 were added to the failure list: deadlines computed from the
+  wall-clock date, and the policy explained correctly but the action never
+  taken. These are the two patterns behind all eight confirmed failures, listed
+  as records of what the dataset must keep exercising. They are not a taxonomy;
+  naming and grouping belongs to Homework 4.
+
+### Constraint discovered while applying the fix
+
+Under `--final`, `validate.py:210-218` requires each data-quality scenario's
+tuple entity id to equal the manifest id in the `data_quality_cases` table
+exactly. All five `dq-product-duplicate-title` scenarios must therefore carry
+`product_id: 2`. The duplicate set cannot be varied by pointing at a different
+product, so vary those five by `role`, `user_style`, `subquestion_count`, and
+how the shopper describes the item. Store 1 does hold five other two-way
+duplicate titles (Handmade Serving Bowl, Portable Mug, Speckled Serving Bowl,
+Walnut Cutting Board, Woven Cutting Board), but they are not documented cases
+and cannot satisfy this `case_id`. This is recorded in `dimension_plan.md`.
 
 Other data facts:
 

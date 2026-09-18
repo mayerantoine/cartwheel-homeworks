@@ -12,7 +12,7 @@ Last commit: `0d4e221` feat(hw3): add Part A dimension plan and 50-scenario pilo
 | 1 | `scenarios/pilot_scenarios.jsonl` | B | done, committed |
 | 2 | `scenarios/pilot-results.jsonl` | B | done, committed |
 | 3 | `scenarios/pilot_review.jsonl` | B | done, 11 records, 8 confirmed failures |
-| 4 | `scenarios/support_scenarios.jsonl` | C | not started |
+| 4 | `scenarios/support_scenarios.jsonl` | C | generated, **student review gate incomplete** |
 | 5 | `scenarios/support_review.jsonl` | C | not started |
 | 6 | `scenarios/monitoring_scenarios.jsonl` | C | not started |
 | 7 | `scenarios/final-results.jsonl` | D | not started |
@@ -190,16 +190,68 @@ asks, three correct and distinct handlings, no account data touched in chat.
 Keeping both in the review matters: a review containing only failures would
 misrepresent the pilot.
 
+## Part C, the 250 final scenarios
+
+`scenarios/support_scenarios.jsonl` is generated and passes `--final`: 250
+records, 175 coverage / 75 challenge, exactly 5 for each of the six
+data-quality cases, ids `support-001` to `support-250` with no collision
+against the `pilot-` prefix.
+
+Records are selected from the database, never invented. A separate checker
+re-derives every expected outcome from `data/cartwheel.db` (permissions,
+`refund_eligible`, the $100 threshold, order status, window arithmetic against
+the 2026-07-01 as-of date) and reports no problems. User messages leak no
+policy identifiers, internal flags or expected outcomes.
+
+### Decisions taken during generation
+
+- **Shoppers never quote an order id.** Real shoppers rarely have the number to
+  hand, and the pilot review already caught the inverse mistake. All 217
+  shopper scenarios describe the item and store; the 33 merchant and support
+  scenarios keep ids, because that is how those roles actually work.
+- **`difficulty` is labelled from the scenario, not the phrasing.** An item
+  description that resolves to exactly one order is `well_specified`, not
+  `ambiguous`. The 24 `ambiguous` scenarios are grounded in users who own two
+  or more delivered orders sharing a product title, so naming the item
+  genuinely cannot pick one; their outcome is `ask_which_order_is_meant` and
+  the source reference lists the competing order ids.
+- **`subquestion_count` is carried on all 250.** The first generator pass
+  dropped the student's approved eighth dimension entirely, and `validate.py`
+  ignores extra fields so nothing caught it. Now 207 single-ask, 38 two-ask,
+  5 three-ask.
+
+### Review gate
+
+`scenarios/skill/SKILL.md` step 6 reserves the conversation review for the
+student. Four scenarios were walked (`support-001`, `031`, `047`, `070`) before
+the order-id decision caused every scenario to be rewritten, so **those four
+reviews are stale and the gate is not satisfied**. A fresh sample must be
+reviewed before Part D runs anything.
+
+### Composition
+
+| Dimension | Spread |
+| --- | --- |
+| group | 175 coverage / 75 challenge |
+| role | 217 shopper / 19 merchant / 14 support |
+| difficulty | 166 well_specified / 30 missing_information / 30 boundary / 24 ambiguous |
+| subquestion_count | 207 one / 38 two / 5 three |
+| turns | 175 single / 75 multi-turn |
+| intent | refund 81, order_status 73, policy_question 52, product_search 25, dispute 9, cancellation 6, account_change 4 |
+
+All eight `user_style` values appear between 26 and 35 times.
+
 ## Next steps
 
-1. **Part C.** Scenario revisions are done (see Corrections below). Generate 250 final
-   scenarios (175 coverage, 75 challenge, five for each of the six data-quality
-   cases) with identifiers distinct from the `pilot-` prefix, review 15 with the
-   student, save `support_review.jsonl` and a 50-scenario
-   `monitoring_scenarios.jsonl`, then validate with `--final`.
+1. **Part C, remaining.** Review a fresh sample of scenarios with the student,
+   record the judgements in `scenarios/support_review.jsonl`, and build the
+   50-scenario `scenarios/monitoring_scenarios.jsonl`, then revalidate with
+   `--final`. The 250-scenario file itself is done.
 
-2. **Part D.** Reseed, run all 250 (about 35 minutes, a few dollars), confirm
-   every record has status `completed`.
+2. **Part D.** Reseed with `uv run python -m seed.generate` immediately before
+   the run, or the results will not match the answer keys. Then run all 250
+   (about 35 minutes, a few dollars) and confirm every record has status
+   `completed`.
 
 3. **Part E.** Run `reports/smoke.sql` against ClickHouse into
    `reports/smoke-output.txt`, export traces to `traces/support_traces.json`,

@@ -1,0 +1,171 @@
+Cartwheel smoke report
+Generated: 2026-09-19T18:58:11Z
+Source: reports/smoke.sql against self-hosted Langfuse ClickHouse
+Note: counts are RAW Langfuse data and include the pilot run plus
+      failed/retried attempts. The cleaned Homework 4 dataset is
+      traces/support_traces.json (324 traces / 250 scenarios).
+
+-- 1. Traces per scenario (are scenario ids flowing end to end?)
+    ┌─scenario_id─┬─traces─┐
+ 1. │ pilot-008   │      4 │
+ 2. │ pilot-011   │      4 │
+ 3. │ pilot-030   │      4 │
+ 4. │ pilot-019   │      4 │
+ 5. │ support-250 │      3 │
+ 6. │ support-154 │      3 │
+ 7. │ support-229 │      3 │
+ 8. │ support-187 │      3 │
+ 9. │ support-247 │      3 │
+10. │ support-166 │      3 │
+11. │ support-237 │      3 │
+12. │ support-199 │      3 │
+13. │ support-181 │      3 │
+14. │ support-244 │      3 │
+15. │ support-233 │      3 │
+16. │ support-236 │      3 │
+17. │ support-193 │      3 │
+18. │ support-175 │      3 │
+19. │ support-202 │      3 │
+20. │ support-211 │      3 │
+21. │ support-205 │      3 │
+22. │ support-249 │      3 │
+23. │ support-157 │      3 │
+24. │ support-217 │      3 │
+25. │ support-214 │      3 │
+26. │ support-163 │      3 │
+27. │ support-190 │      3 │
+28. │ support-151 │      3 │
+29. │ support-150 │      3 │
+30. │ support-184 │      3 │
+31. │ support-197 │      3 │
+32. │ support-226 │      3 │
+33. │ support-160 │      3 │
+34. │ support-172 │      3 │
+35. │ support-169 │      3 │
+36. │ support-232 │      3 │
+37. │ support-178 │      3 │
+38. │ support-208 │      3 │
+39. │ support-223 │      3 │
+40. │ support-220 │      3 │
+41. │ support-196 │      3 │
+42. │ hw1-line-1  │      3 │
+43. │ support-219 │      2 │
+44. │ support-082 │      2 │
+45. │ support-209 │      2 │
+46. │ support-088 │      2 │
+47. │ support-170 │      2 │
+48. │ support-203 │      2 │
+49. │ support-115 │      2 │
+50. │ support-162 │      2 │
+    └─scenario_id─┴─traces─┘
+
+-- 1. Traces per scenario (are scenario ids flowing end to end?)
+    ┌─scenario_id─┬─traces─┐
+ 1. │ pilot-008   │      4 │
+ 2. │ pilot-011   │      4 │
+ 3. │ pilot-030   │      4 │
+ 4. │ pilot-019   │      4 │
+ 5. │ support-250 │      3 │
+ 6. │ support-154 │      3 │
+ 7. │ support-229 │      3 │
+ 8. │ support-187 │      3 │
+ 9. │ support-247 │      3 │
+10. │ support-166 │      3 │
+11. │ support-237 │      3 │
+12. │ support-199 │      3 │
+13. │ support-181 │      3 │
+14. │ support-244 │      3 │
+15. │ support-233 │      3 │
+16. │ support-236 │      3 │
+17. │ support-193 │      3 │
+18. │ support-175 │      3 │
+19. │ support-202 │      3 │
+20. │ support-211 │      3 │
+21. │ support-205 │      3 │
+22. │ support-249 │      3 │
+23. │ support-157 │      3 │
+24. │ support-217 │      3 │
+25. │ support-214 │      3 │
+26. │ support-163 │      3 │
+27. │ support-190 │      3 │
+28. │ support-151 │      3 │
+29. │ support-150 │      3 │
+30. │ support-184 │      3 │
+31. │ support-197 │      3 │
+32. │ support-226 │      3 │
+33. │ support-160 │      3 │
+34. │ support-172 │      3 │
+35. │ support-169 │      3 │
+36. │ support-232 │      3 │
+37. │ support-178 │      3 │
+38. │ support-208 │      3 │
+39. │ support-223 │      3 │
+40. │ support-220 │      3 │
+41. │ support-196 │      3 │
+42. │ hw1-line-1  │      3 │
+43. │ support-219 │      2 │
+44. │ support-082 │      2 │
+45. │ support-209 │      2 │
+46. │ support-088 │      2 │
+47. │ support-170 │      2 │
+48. │ support-203 │      2 │
+49. │ support-115 │      2 │
+50. │ support-162 │      2 │
+    └─scenario_id─┴─traces─┘
+
+-- 2. Traces per user role (are all three roles represented?)
+   ┌─role─────┬─traces─┐
+1. │ shopper  │    432 │
+2. │ merchant │     45 │
+3. │ support  │     32 │
+4. │          │     12 │
+   └──────────┴────────┘
+
+-- 3. Error count by observation name (anything raising?)
+   ┌─name──────────────────────┬─errors─┐
+1. │ cartwheel.session_message │    104 │
+2. │ openai.response           │    103 │
+   └───────────────────────────┴────────┘
+
+-- 4. Escalation count (how often did the agent punt to a human?)
+   ┌─escalations─┐
+1. │         100 │
+   └─────────────┘
+
+-- 5. Token and cost totals (the Artifact I arithmetic, observed)
+   ┌─input_tokens─┬─output_tokens─┬──────total_cost─┐
+1. │      1638930 │        289693 │ 17.185727999821 │
+   └──────────────┴───────────────┴─────────────────┘
+
+-- 6. Longest traces by span count (candidates for a raw read)
+    ┌─trace_id─────────────────────────┬─spans─┬─duration_ms─┐
+ 1. │ 7bd7e93d86a1dbef6e3a9501ed5b7eb5 │    28 │       43416 │
+ 2. │ 841710a99d3b23bf14645d3f5c47a20d │    27 │       42968 │
+ 3. │ cb71190d1aec25d5c0dadcdc7d42121e │    23 │       43822 │
+ 4. │ e7431fe37ef4fd2fbd30b7416ad73b15 │    22 │       30436 │
+ 5. │ faccf0358e61ce8cfb95b8a992132e81 │    22 │       35086 │
+ 6. │ ab9c0cd7ccfda332015aaf95f5f95cf5 │    21 │       30765 │
+ 7. │ 689a60f834d4d01a0eea8f4d6ceb7082 │    20 │       32701 │
+ 8. │ 50f0ec8591245853ad451d21342c63cd │    20 │       32302 │
+ 9. │ bee80476891b93b0db762cf6d05e9dd1 │    20 │       25563 │
+10. │ 9f829890fe4d852a6d99eea283cf5879 │    20 │       62099 │
+    └──────────────────────────────────┴───────┴─────────────┘
+
+-- 7. Tool-call frequency (which tools does the agent actually use?)
+   ┌─name───────────────┬─calls─┐
+1. │ search_help_center │   328 │
+2. │ get_policy         │   263 │
+3. │ get_order          │   237 │
+4. │ find_order         │   180 │
+5. │ escalate_to_human  │   100 │
+6. │ search_products    │    95 │
+7. │ issue_refund       │    22 │
+8. │ cancel_order       │     7 │
+9. │ list_my_orders     │     3 │
+   └────────────────────┴───────┘
+
+-- 8. Permission-denied count (gold for Module 4; requires the Homework 2 attribute)
+   ┌─permission_denials─┐
+1. │                  7 │
+   └────────────────────┘
+

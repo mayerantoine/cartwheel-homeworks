@@ -3,11 +3,9 @@
 Branch: `hw3` (from `hw2`). Model for every run: `gpt-5.5` (`CARTWHEEL_MODEL`).
 Database as-of date: **2026-07-01**. Money is stored in cents.
 
-Last commit: `fac0bd0` feat(hw3): complete Part C review, revisions, and
-monitoring set.
+Last commit: Parts D and E.
 
-**Parts A, B and C are complete. Part D is next and is the first step that
-spends money.**
+**All nine deliverable files exist. Only the student's video remains.**
 
 ## Deliverable checklist
 
@@ -19,40 +17,59 @@ spends money.**
 | 4 | `scenarios/support_scenarios.jsonl` | C | done, 250 records, validator clean |
 | 5 | `scenarios/support_review.jsonl` | C | done, 42 records, 23 accept / 19 revise |
 | 6 | `scenarios/monitoring_scenarios.jsonl` | C | done, 50 records |
-| 7 | `scenarios/final-results.jsonl` | D | not started |
-| 8 | `reports/smoke-output.txt` | E | not started |
-| 9 | `traces/support_traces.json` | E | not started |
+| 7 | `scenarios/final-results.jsonl` | D | done, **250/250 completed** |
+| 8 | `reports/smoke-output.txt` | E | done, all 8 queries |
+| 9 | `traces/support_traces.json` | E | done, **324 traces / 250 scenarios** |
 
 The video and all review judgements are the student's work, not the agent's.
 
-Every check recorded below ran **offline** against `data/cartwheel.db`. No
-model calls have been made since the 50-scenario pilot. Part D is the first
-time the agent's behaviour meets these answer keys, so some expected outcomes
-may prove arguable in ways static verification cannot reveal.
+Parts A to C were verified **offline** against `data/cartwheel.db`. Part D was
+the first time the agent's behaviour met these answer keys; the results have
+not yet been judged against the expected outcomes, and that judging is
+Homework 4's work, not something this file records.
 
 ## Environment state
 
-Checked 2026-09-18, after the Part C commit:
+Checked 2026-09-19, after the Part D and E runs:
 
 - Cartwheel server on port 8010 (`uv run uvicorn server.app:app --port 8010`).
-  Needed for Parts C, D, and E. **Up**, returns 200.
+  Up. Needed again only for Homework 7's rerun.
 - Six Langfuse containers
-  (`docker compose -f observability/docker-compose.yml up -d`). Needed through
-  Part E. **Down**, the health check returns no response. Start them and wait
-  for a 200 before Part D, or the run will make 250 model calls whose traces
-  are never recorded, and Part E will have nothing to export.
-
-  ```bash
-  curl -s -o /dev/null -w '%{http_code}' http://localhost:8010/health
-  curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/api/public/health
-  ```
-
-  Both stop when the machine sleeps or restarts, so recheck immediately before
-  the run rather than trusting this note.
-- Database is **not** in seeded state after the pilot. Part D requires
-  `uv run python -m seed.generate` immediately before the final run.
+  (`docker compose -f observability/docker-compose.yml up -d`). Up and healthy.
+  **Keep them.** Homework 4 uses Langfuse as the canonical trace and annotation
+  store; `traces/support_traces.json` is its offline fallback, not a
+  replacement.
+- Database is in seeded state as of the last reseed before the final run.
 - `.sessions.db-shm` and `.sessions.db-wal` are untracked runtime scratch files,
   deliberately not committed.
+
+Two checks before trusting this note, because both services stop when the
+machine sleeps:
+
+```bash
+curl -s -o /dev/null -w '%{http_code}' http://localhost:8010/health
+curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/api/public/health
+```
+
+A 200 from `/health` is **not** sufficient for the Cartwheel server. It kept
+answering 200 while every `POST /sessions` returned 500. The real check is to
+create a session and send one message.
+
+### Host resource limits, learned the hard way
+
+This machine has 16 GB and 8 cores, and the run failed three times on
+resources before it completed. What worked:
+
+- **Docker VM at 6 CPU / 3.84 GB.** At the original 4 CPU / 1.94 GB,
+  `langfuse-web` sat at ~99% CPU *while idle* and had crash-looped 36 times;
+  Redis then could not hold BullMQ locks and the worker dropped ingestion jobs
+  rather than queueing them.
+- **Chrome closed.** It reached 58 processes and 5.86 GB, nearly four times
+  Docker's footprint, and the OS killed the runner mid-run when swap hit
+  6.33 GB of 7 GB.
+- **Batches of 20** via `--ids` rather than one 250-scenario run. The server
+  wedged after roughly 40 to 50 scenarios every time, so batching capped the
+  loss at minutes instead of the whole tail.
 
 ## Completed work
 
@@ -333,65 +350,145 @@ all seven intents, all eight styles, 34 multi-turn, all six data-quality cases.
 The challenge tilt is intentional; challenge scenarios are where regressions
 surface first.
 
+## Part D, the final run
+
+`scenarios/final-results.jsonl`: **250 records, all `completed`**, 175 coverage
+/ 75 challenge, one model (`gpt-5.5`), no duplicate ids.
+
+The run did not complete in one pass. It took four attempts across two days,
+and the reasons are worth recording because Homework 7 reruns the monitoring
+subset on the same machine.
+
+| Attempt | Result | Cause |
+| --- | --- | --- |
+| 1 | stopped at 19 | Langfuse dropped ~90% of traces; only 2 of 19 landed |
+| 2 | 149 of 250 | OS killed the runner, swap exhausted at 6.33 GB of 7 GB |
+| 3 | 0 of 101 | `OPENAI_API_KEY` invalidated; every request 500 |
+| 4 | 47, then 20 + 20 + 14 in batches | server wedged twice more; batching finished it |
+
+Attempt 1 was stopped deliberately. Had it run on, it would have spent the full
+250 model calls and produced almost nothing for Part E, while
+`final-results.jsonl` showed a clean 250/250. **The runner reports `completed`
+on the basis of the HTTP reply from port 8010 and never checks that Langfuse
+recorded anything**, so trace loss is invisible in the results file. This is the
+same failure that cost the pilot 15 of its 50 traces.
+
+The API key problem had a second trap. The key was replaced in `.env`, but a
+stale `OPENAI_API_KEY` was exported in the shell, and `python-dotenv` does not
+override a variable already present in the environment. The server inherited the
+dead key and returned 500 on every scenario. The fix was `unset OPENAI_API_KEY`
+before starting uvicorn. A restart alone was not enough: the first "restart" left
+the original day-old process alive, which `ps -o lstart` exposed.
+
+### What made the difference
+
+Checking trace delivery *during* the run rather than at the export. After each
+batch:
+
+```bash
+docker exec observability-clickhouse-1 clickhouse-client \
+  --user clickhouse --password clickhouse --database default \
+  --query "SELECT countIf(JSONExtractString(metadata['attributes'],'cartwheel.scenario_id') LIKE 'support-%') FROM traces"
+```
+
+The count should exceed the scenario count, because 74 of the 250 are
+multi-turn and each turn is its own trace. Healthy checkpoints ran 5/3, 7/6,
+9/8, 22/20, 46/41, 26 new per 20. The failed run showed 2 per 19.
+
+## Part E, export and smoke report
+
+`traces/support_traces.json`: **324 traces for all 250 scenarios**, which equals
+the sum of `turn_count` exactly. The handout's video command returns 250:
+
+```bash
+jq '[.traces[].cartwheel_scenario_id] | unique | length' traces/support_traces.json
+```
+
+### The export needed filtering
+
+The raw export held **429 traces**. `export_langfuse.py` selects by scenario id
+and does not deduplicate, so every failed attempt and rerun came back under the
+same ids. Removed, with the counts recorded in a `filtered` block inside the
+file:
+
+| Removed | Count | Why |
+| --- | --- | --- |
+| 401 auth errors | 101 | cost 0.0, latency 0.055s, no output; never reached the model |
+| zero-cost failure | 1 | same shape, different cause |
+| duplicate reruns | 3 | genuine earlier runs of `support-001`, `002`, `150` |
+
+For the three duplicates the **newest** traces were kept, being the runs made
+after the final reseed with a working key. Some of the discarded ones predate a
+reseed, so their recorded behaviour no longer matches the database the answer
+keys describe. Left in place they would have been open-coded in Homework 4 as
+real agent behaviour.
+
+Langfuse still holds everything; only the exported file was filtered.
+
+### Smoke report
+
+`reports/smoke-output.txt` carries all eight queries. Two mechanical notes:
+`--multiquery` silently stopped after query 4, so the queries were run
+individually, and query 8 has no trailing semicolon and had to be appended
+separately.
+
+The report reads **raw** Langfuse data, so its counts include the pilot run and
+every failed attempt and do not match the filtered export. A header in the file
+says so.
+
+| Section | Observed |
+| --- | --- |
+| roles | shopper 432, merchant 45, support 32 |
+| errors | 104 `cartwheel.session_message`, 103 `openai.response` |
+| escalations | 100 |
+| tokens / cost | 1,638,930 in / 289,693 out, **$17.19** |
+| permission denials | **7** |
+| tools | `search_help_center` 328, `get_policy` 263, `get_order` 237, `find_order` 180, `escalate_to_human` 100, `search_products` 95, `issue_refund` 22, `cancel_order` 7, `list_my_orders` 3 |
+
+The 104 errors are the failed attempts, not agent misbehaviour. The 7 permission
+denials confirm the Homework 2 span attribute works, which Homework 4 depends
+on. A stray `hw1-line-1` trace from Homework 1 also appears in the raw data; it
+is not a final scenario id and is absent from the export.
+
 ## Next steps
 
-1. **Part D.** Check the environment first, because the server and Langfuse
-   both stop when the machine sleeps:
+1. **Video.** Five minutes maximum, recorded by the student. The handout asks
+   for a failed pilot scenario with its evidence, a revised final scenario, one
+   complete final trace, and the scenario-id count.
 
-   ```bash
-   curl -s -o /dev/null -w '%{http_code}' http://localhost:8010/health
-   curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/api/public/health
-   ```
-
-   Then reseed, which is **not optional**: the pilot cancelled and refunded
-   real orders, and 57 of the 250 scenarios expect a specific order state.
-
-   ```bash
-   uv run python -m seed.generate
-
-   uv run python -m scenarios.runner scenarios/support_scenarios.jsonl \
-     --model gpt-5.5 --output scenarios/final-results.jsonl
-   ```
-
-   About 35 minutes and a few dollars. Then confirm every record has status
-   `completed`, and summarise the coverage and challenge sets separately:
-
-   ```bash
-   jq -s 'group_by(.status) | map({status: .[0].status, count: length})' \
-     scenarios/final-results.jsonl
-   ```
-
-   Rerun only what failed with `--resume`, or named ids with
-   `--ids support-153,support-201`. A rerun does not reset the data, so before
-   rerunning a refund or cancellation scenario, check the first attempt did not
-   already change the order. All 57 state-changing scenarios sit on distinct
-   orders, so no scenario can be spoiled by another's mutation within one run.
-
-2. **Part E.** Run `reports/smoke.sql` against ClickHouse into
-   `reports/smoke-output.txt`, export traces to `traces/support_traces.json`,
-   and open three traces to confirm the conversation, model, tool activity, and
-   `cartwheel_scenario_id`. Include one challenge scenario and one multi-turn
-   scenario.
-
-3. **Video.** Five minutes maximum, recorded by the student. The handout asks
-   for a failed pilot scenario with its evidence, a revised final scenario,
-   one complete final trace, and the scenario-id count. For the revised
-   scenario, `support-249` and `support-206` are the clearest to narrate: both
-   have a defect that is visible on screen and a recorded reason in
+   For the revised scenario, `support-249` and `support-206` are the clearest to
+   narrate: each has a defect visible on screen and a recorded reason in
    `support_review.jsonl`.
 
-## Open questions for Part D
+   **For the failed pilot scenario, do not pick `pilot-031` or `pilot-036`.**
+   Both are confirmed failures but **have no trace in Langfuse**, so there is
+   nothing to show. Fifteen pilot traces were lost to the same ingestion failure
+   described above. Use `pilot-033`, `043`, `050`, `019`, `013` or `030`, all of
+   which are traced.
+
+2. **Homework 4.** Keep the Langfuse containers. Homework 4 groups traces by
+   `cartwheel.session_id`, which `server/app.py:203` sets on the same span as
+   the scenario id, so multi-turn conversations reassemble correctly.
+
+## Open questions carried into Homework 4
+
+These were written before Part D ran. The run produced the traces but nothing
+here has been judged yet, because comparing behaviour to the expected outcomes
+is Homework 4's open coding, not Homework 3's work.
 
 - **Expected outcomes are verified against the database, not against
   behaviour.** Static checks cannot tell whether an expected outcome is
   *reasonable*, only whether it matches the record. The pilot showed this
   matters: `pilot-021` was ruled not-a-failure only after seeing what the agent
-  actually did. Expect a few Part D results to raise the same question.
+  actually did. Expect some Part D results to raise the same question.
 - **The two failure patterns from the pilot are unaddressed by design.** The
   agent used the wall-clock date instead of the 2026-07-01 as-of date, and
   explained policy correctly without acting. Many final expected reasons now
-  state both requirements explicitly, so Part D will show whether that
-  phrasing changes the agent's behaviour or merely documents the expectation.
+  state both requirements explicitly, so the traces will show whether that
+  phrasing changed the agent's behaviour or merely documented the expectation.
+- **The smoke report counts 100 escalations and 7 permission denials** across
+  the raw data. Neither number has been checked against the scenarios that
+  expected those outcomes; that join is Homework 4 work.
 
 ## Corrections to the pilot files, applied 2026-09-18
 

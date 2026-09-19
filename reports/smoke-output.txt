@@ -1,131 +1,76 @@
 Cartwheel smoke report
-Generated: 2026-09-19T18:58:11Z
+Generated: 2026-09-19T19:10:45Z
 Source: reports/smoke.sql against self-hosted Langfuse ClickHouse
-Note: counts are RAW Langfuse data and include the pilot run plus
-      failed/retried attempts. The cleaned Homework 4 dataset is
+Note: raw Langfuse data. It includes the 50-scenario pilot alongside the
+      250 final scenarios, so per-scenario counts exceed one trace per
+      turn where a scenario was rerun. The 104 dead traces from the
+      failed 2026-09-19 authentication run were deleted before this
+      report was generated. The Homework 4 dataset is
       traces/support_traces.json (324 traces / 250 scenarios).
 
 -- 1. Traces per scenario (are scenario ids flowing end to end?)
     ┌─scenario_id─┬─traces─┐
- 1. │ pilot-008   │      4 │
- 2. │ pilot-011   │      4 │
- 3. │ pilot-030   │      4 │
- 4. │ pilot-019   │      4 │
- 5. │ support-250 │      3 │
- 6. │ support-154 │      3 │
- 7. │ support-229 │      3 │
- 8. │ support-187 │      3 │
- 9. │ support-247 │      3 │
-10. │ support-166 │      3 │
-11. │ support-237 │      3 │
-12. │ support-199 │      3 │
-13. │ support-181 │      3 │
-14. │ support-244 │      3 │
-15. │ support-233 │      3 │
-16. │ support-236 │      3 │
-17. │ support-193 │      3 │
-18. │ support-175 │      3 │
-19. │ support-202 │      3 │
-20. │ support-211 │      3 │
-21. │ support-205 │      3 │
-22. │ support-249 │      3 │
-23. │ support-157 │      3 │
-24. │ support-217 │      3 │
-25. │ support-214 │      3 │
-26. │ support-163 │      3 │
-27. │ support-190 │      3 │
-28. │ support-151 │      3 │
-29. │ support-150 │      3 │
-30. │ support-184 │      3 │
-31. │ support-197 │      3 │
-32. │ support-226 │      3 │
-33. │ support-160 │      3 │
-34. │ support-172 │      3 │
-35. │ support-169 │      3 │
-36. │ support-232 │      3 │
-37. │ support-178 │      3 │
-38. │ support-208 │      3 │
-39. │ support-223 │      3 │
-40. │ support-220 │      3 │
-41. │ support-196 │      3 │
-42. │ hw1-line-1  │      3 │
-43. │ support-219 │      2 │
-44. │ support-082 │      2 │
-45. │ support-209 │      2 │
-46. │ support-088 │      2 │
-47. │ support-170 │      2 │
-48. │ support-203 │      2 │
-49. │ support-115 │      2 │
-50. │ support-162 │      2 │
-    └─scenario_id─┴─traces─┘
-
--- 1. Traces per scenario (are scenario ids flowing end to end?)
-    ┌─scenario_id─┬─traces─┐
- 1. │ pilot-008   │      4 │
- 2. │ pilot-011   │      4 │
- 3. │ pilot-030   │      4 │
- 4. │ pilot-019   │      4 │
- 5. │ support-250 │      3 │
- 6. │ support-154 │      3 │
- 7. │ support-229 │      3 │
- 8. │ support-187 │      3 │
- 9. │ support-247 │      3 │
-10. │ support-166 │      3 │
-11. │ support-237 │      3 │
-12. │ support-199 │      3 │
-13. │ support-181 │      3 │
-14. │ support-244 │      3 │
-15. │ support-233 │      3 │
-16. │ support-236 │      3 │
-17. │ support-193 │      3 │
-18. │ support-175 │      3 │
-19. │ support-202 │      3 │
-20. │ support-211 │      3 │
-21. │ support-205 │      3 │
-22. │ support-249 │      3 │
-23. │ support-157 │      3 │
-24. │ support-217 │      3 │
-25. │ support-214 │      3 │
-26. │ support-163 │      3 │
-27. │ support-190 │      3 │
-28. │ support-151 │      3 │
-29. │ support-150 │      3 │
-30. │ support-184 │      3 │
-31. │ support-197 │      3 │
-32. │ support-226 │      3 │
-33. │ support-160 │      3 │
-34. │ support-172 │      3 │
-35. │ support-169 │      3 │
-36. │ support-232 │      3 │
-37. │ support-178 │      3 │
-38. │ support-208 │      3 │
-39. │ support-223 │      3 │
-40. │ support-220 │      3 │
-41. │ support-196 │      3 │
-42. │ hw1-line-1  │      3 │
-43. │ support-219 │      2 │
-44. │ support-082 │      2 │
-45. │ support-209 │      2 │
-46. │ support-088 │      2 │
-47. │ support-170 │      2 │
-48. │ support-203 │      2 │
-49. │ support-115 │      2 │
-50. │ support-162 │      2 │
+ 1. │ pilot-030   │      4 │
+ 2. │ pilot-008   │      4 │
+ 3. │ pilot-019   │      4 │
+ 4. │ pilot-011   │      4 │
+ 5. │ hw1-line-1  │      3 │
+ 6. │ support-094 │      2 │
+ 7. │ support-103 │      2 │
+ 8. │ support-202 │      2 │
+ 9. │ pilot-003   │      2 │
+10. │ support-166 │      2 │
+11. │ support-106 │      2 │
+12. │ support-163 │      2 │
+13. │ pilot-021   │      2 │
+14. │ pilot-005   │      2 │
+15. │ pilot-017   │      2 │
+16. │ support-049 │      2 │
+17. │ support-247 │      2 │
+18. │ support-031 │      2 │
+19. │ support-208 │      2 │
+20. │ support-046 │      2 │
+21. │ support-169 │      2 │
+22. │ support-043 │      2 │
+23. │ support-034 │      2 │
+24. │ support-217 │      2 │
+25. │ support-205 │      2 │
+26. │ support-142 │      2 │
+27. │ support-175 │      2 │
+28. │ pilot-006   │      2 │
+29. │ support-064 │      2 │
+30. │ support-052 │      2 │
+31. │ pilot-014   │      2 │
+32. │ support-076 │      2 │
+33. │ support-040 │      2 │
+34. │ pilot-012   │      2 │
+35. │ support-037 │      2 │
+36. │ support-118 │      2 │
+37. │ support-214 │      2 │
+38. │ support-115 │      2 │
+39. │ support-109 │      2 │
+40. │ support-067 │      2 │
+41. │ support-244 │      2 │
+42. │ support-148 │      2 │
+43. │ pilot-015   │      2 │
+44. │ pilot-007   │      2 │
+45. │ support-070 │      2 │
+46. │ support-145 │      2 │
+47. │ support-211 │      2 │
+48. │ support-157 │      2 │
+49. │ support-249 │      2 │
+50. │ support-127 │      2 │
     └─scenario_id─┴─traces─┘
 
 -- 2. Traces per user role (are all three roles represented?)
    ┌─role─────┬─traces─┐
-1. │ shopper  │    432 │
-2. │ merchant │     45 │
-3. │ support  │     32 │
+1. │ shopper  │    338 │
+2. │ merchant │     41 │
+3. │ support  │     26 │
 4. │          │     12 │
    └──────────┴────────┘
 
 -- 3. Error count by observation name (anything raising?)
-   ┌─name──────────────────────┬─errors─┐
-1. │ cartwheel.session_message │    104 │
-2. │ openai.response           │    103 │
-   └───────────────────────────┴────────┘
 
 -- 4. Escalation count (how often did the agent punt to a human?)
    ┌─escalations─┐
@@ -146,8 +91,8 @@ Note: counts are RAW Langfuse data and include the pilot run plus
  5. │ faccf0358e61ce8cfb95b8a992132e81 │    22 │       35086 │
  6. │ ab9c0cd7ccfda332015aaf95f5f95cf5 │    21 │       30765 │
  7. │ 689a60f834d4d01a0eea8f4d6ceb7082 │    20 │       32701 │
- 8. │ 50f0ec8591245853ad451d21342c63cd │    20 │       32302 │
- 9. │ bee80476891b93b0db762cf6d05e9dd1 │    20 │       25563 │
+ 8. │ bee80476891b93b0db762cf6d05e9dd1 │    20 │       25563 │
+ 9. │ 50f0ec8591245853ad451d21342c63cd │    20 │       32302 │
 10. │ 9f829890fe4d852a6d99eea283cf5879 │    20 │       62099 │
     └──────────────────────────────────┴───────┴─────────────┘
 

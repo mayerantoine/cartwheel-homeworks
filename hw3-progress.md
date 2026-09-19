@@ -432,23 +432,48 @@ Langfuse still holds everything; only the exported file was filtered.
 individually, and query 8 has no trailing semicolon and had to be appended
 separately.
 
-The report reads **raw** Langfuse data, so its counts include the pilot run and
-every failed attempt and do not match the filtered export. A header in the file
-says so.
+The report reads **raw** Langfuse data, so its counts still include the pilot
+run alongside the 250 final scenarios and do not match the filtered export. A
+header in the file says so.
+
+It was regenerated after the dead-trace deletion described below, so the
+committed file matches the current store.
 
 | Section | Observed |
 | --- | --- |
-| roles | shopper 432, merchant 45, support 32 |
-| errors | 104 `cartwheel.session_message`, 103 `openai.response` |
+| roles | shopper 338, merchant 41, support 26 |
+| errors | **none** |
 | escalations | 100 |
 | tokens / cost | 1,638,930 in / 289,693 out, **$17.19** |
 | permission denials | **7** |
 | tools | `search_help_center` 328, `get_policy` 263, `get_order` 237, `find_order` 180, `escalate_to_human` 100, `search_products` 95, `issue_refund` 22, `cancel_order` 7, `list_my_orders` 3 |
 
-The 104 errors are the failed attempts, not agent misbehaviour. The 7 permission
-denials confirm the Homework 2 span attribute works, which Homework 4 depends
-on. A stray `hw1-line-1` trace from Homework 1 also appears in the raw data; it
-is not a final scenario id and is absent from the export.
+The 7 permission denials confirm the Homework 2 span attribute works, which
+Homework 4 depends on. A stray `hw1-line-1` trace from Homework 1 also appears
+in the raw data; it is not a final scenario id and is absent from the export.
+
+The cost figure covers **every** attempt, including the runs that were killed
+or wedged, so it overstates what the successful 250 alone cost.
+
+### Dead traces deleted from Langfuse
+
+The failed 2026-09-19 authentication run left **104 traces** carrying 207
+`level='ERROR'` spans, all inside one 18-minute window, each with cost 0 and no
+output because the model was never reached. They were deleted.
+
+The reason is Homework 4, which uses Langfuse as its canonical store and begins
+Part B with 15 *uniformly sampled* traces (`homework/module-2/hw4.md:74`).
+Sampling over 521 traces would have drawn roughly three dead ones per batch of
+15, each consuming a review slot with no conversation to open-code.
+
+Before deleting, two things were verified: the deletion set had **zero overlap**
+with the 324 traces in `traces/support_traces.json`, and no other dead traces
+existed anywhere in the store. After deleting: **417 traces remain**, 0 carry
+error spans, all 67 pilot traces survive, every one of the 324 exported traces
+still resolves, and all 250 scenario ids still have traces.
+
+Deletion is permanent and Langfuse has no undo, so the record of those failures
+lives here and in the Part D commit message rather than in the trace store.
 
 ## Next steps
 

@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<!--
+  Cartwheel HW4 review interface, session-grouped.
+
+  Adapted from the course reference UI (analysis/ui/index.html). The reference
+  renders one Langfuse trace per screen; Cartwheel writes one trace per user
+  turn, so 81 of 322 sessions in the live store were split across screens and
+  a followup turn was unreadable on its own. This interface groups by
+  cartwheel.session_id and renders the whole conversation in timestamp order.
+
+  Views:
+    session   read one conversation, annotate the first failure in place
+    map       2D projection of the store, clusters + sampled + annotated
+    progress  taxonomy treemap, suggestion queue, batch coverage
+    label     structured labeling: one present/absent decision per trace+mode
+
+  Visual encoding (SKILL.md phase 2):
+    hue        = segment role (user/assistant/tool_call/tool_result)
+    hue accent = tool failure (ok:false gets a red border and an error badge)
+    typography = content type (prose proportional, JSON monospace)
+    spacing    = hierarchy (call<->result tight, steps medium, turns large)
+    container  = a tool call grouped with its result
+    opacity    = full everywhere; only long tool bodies collapse, and their
+                 summary keeps ok/status/error visible, because a tool result
+                 is exactly where a failure hides.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cartwheel error analysis &mdash; HW4</title>
+<style>
+  :root {
+    --role-user: #2563eb;
+    --role-assistant: #059669;
+    --role-tool-call: #b45309;
+    --role-tool-result: #7c3aed;
+    --role-error: #dc2626;
+
+    --bg: #f7f7f8;
+    --panel: #ffffff;
+    --ink: #1a1a1a;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --hl: #fde68a;
+    --hl-pending: #fef08a;
+    --sugg: #ddd6fe;
+    --sugg-border: #7c3aed;
+    --ok: #059669;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--ink); background: var(--bg);
+  }
+  code, pre, .mono { font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; }
+
+  header {
+    display: flex; align-items: center; gap: 16px;
+    padding: 10px 18px; background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; z-index: 50;
+  }
+  header h1 { font-size: 15px; margin: 0; font-weight: 700; }
+  header h1 .dim { color: var(--muted); font-weight: 400; }
+  .views { display: flex; gap: 4px; }
+  .views button {
+    border: 1px solid var(--line); background: var(--bg);
+    padding: 6px 14px; border-radius: 6px; cursor: pointer; font: inherit;
+  }
+  .views button.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .spacer { flex: 1; }
+  .counts { color: var(--muted); font-size: 13px; }
+  .nav { display: flex; gap: 4px; align-items: center; }
+  .nav button {
+    border: 1px solid var(--line); background: var(--bg);
+    width: 30px; height: 30px; border-radius: 6px; cursor: pointer; font: inherit;
+  }
+  .nav .pos { color: var(--muted); font-size: 13px; min-width: 96px; text-align: center; }
+
+  #toast {
+    position: fixed; right: 18px; bottom: 18px; z-index: 100;
+    background: var(--ink); color: #fff; padding: 10px 16px;
+    border-radius: 8px; font-size: 13px; opacity: 0; pointer-events: none;
+    transition: opacity .2s; max-width: 340px;
+  }
+  #toast.show { opacity: 1; }
+
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* ---------- session view ---------- */
+  #session-view { padding: 20px 18px 140px; }
+  .sess-header {
+    display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: baseline;
+    max-width: 1020px; margin: 0 auto 8px; padding-bottom: 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  .sess-header .sid { font-weight: 700; }
+  .sess-header .meta { color: var(--muted); font-size: 13px; }
+  .sess-header .pill {
+    font-size: 11px; background: #eef2ff; color: #3730a3;
+    padding: 2px 8px; border-radius: 10px; font-weight: 600;
+  }
+  .sess-header .flag {
+    font-size: 11px; background: #fef3c7; color: #92400e;
+    padding: 2px 7px; border-radius: 10px;
+  }
+  .sess-header .reviewed { font-size: 11px; background: #dcfce7; color: #166534;
+    padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+
+  .body-wrap {
+    display: flex; gap: 24px; max-width: 1020px; margin: 0 auto;
+    align-items: flex-start; position: relative;
+  }
+  .body-col { flex: 1; max-width: 740px; min-width: 0; }
+  .margin-col { width: 250px; position: relative; flex-shrink: 0; }
+
+  /* turn = one Langfuse trace inside the session. Large separation (SKILL
+     phase 2: 32-48px between major sections) so turn boundaries read at a
+     glance, since a cross-turn failure is the reason this view exists. */
+  .turn { margin-bottom: 40px; }
+  .turn-bar {
+    display: flex; align-items: center; gap: 10px;
+    margin: 0 0 12px; padding: 6px 0 6px;
+    border-top: 2px solid var(--ink);
+  }
+  .turn-bar .label { font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; }
+  .turn-bar .tid { font-size: 12px; color: var(--muted); }
+  .turn-bar a { font-size: 12px; color: var(--role-user); text-decoration: none; }
+  .turn-bar a:hover { text-decoration: underline; }
+  .turn-bar .tflag { font-size: 11px; background: #fef3c7; color: #92400e;
+    padding: 1px 7px; border-radius: 10px; }
+
+  .step {
+    border: 1px solid var(--line); border-radius: 8px;
+    margin-bottom: 18px; overflow: hidden; background: var(--panel);
+  }
+  .msg { padding: 10px 14px; border-left: 4px solid var(--line); }
+  .msg + .msg { border-top: 1px solid var(--line); }
+  .msg .role {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .04em; margin-bottom: 5px;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .msg[data-role="user"]        { border-left-color: var(--role-user); }
+  .msg[data-role="user"] .role  { color: var(--role-user); }
+  .msg[data-role="assistant"]   { border-left-color: var(--role-assistant); }
+  .msg[data-role="assistant"] .role { color: var(--role-assistant); }
+  .msg[data-role="tool_call"]   { border-left-color: var(--role-tool-call); }
+  .msg[data-role="tool_call"] .role { color: var(--role-tool-call); }
+  .msg[data-role="tool_result"] { border-left-color: var(--role-tool-result); }
+  .msg[data-role="tool_result"] .role { color: var(--role-tool-result); }
+  .msg[data-role="tool_result"].failed { border-left-color: var(--role-error); }
+  .msg[data-role="tool_result"].failed .role { color: var(--role-error); }
+
+  .msg .text { white-space: pre-wrap; word-wrap: break-word; }
+  .fn { font-weight: 700; font-family: "SF Mono", ui-monospace, Menlo, monospace; }
+
+  /* Status chips: the failure-bearing fields lifted out of the JSON so the
+     reviewer sees them without expanding anything (RESP-2, AUTH-1, RESP-1). */
+  .chip {
+    font-size: 11px; padding: 1px 7px; border-radius: 10px; font-weight: 700;
+    letter-spacing: .02em; text-transform: none;
+  }
+  .chip.ok { background: #dcfce7; color: #166534; }
+  .chip.err { background: #fee2e2; color: #991b1b; }
+  .chip.queued { background: #fef3c7; color: #92400e; }
+  .chip.policy { background: #ede9fe; color: #5b21b6; font-family: "SF Mono", ui-monospace, monospace; }
+
+  pre.json {
+    background: #f3f4f6; border-radius: 6px; padding: 8px 10px; margin: 6px 0 0;
+    font-size: 12.5px; overflow-x: auto; white-space: pre;
+  }
+  details.body { margin-top: 6px; }
+  details.body summary { cursor: pointer; color: var(--muted); font-size: 12.5px; }
+  .args-inline { margin-top: 4px; }
+
+  /* ---------- highlights + margin notes ---------- */
+  .hl { background: var(--hl); border-radius: 2px; cursor: pointer; }
+  .hl.pending-highlight { background: var(--hl-pending); }
+  .hl.sugg { background: var(--sugg); border-bottom: 2px dashed var(--sugg-border); }
+  .hl.outline { outline: 2px solid var(--ink); outline-offset: 1px; }
+
+  .mnote {
+    position: absolute; left: 0; width: 100%;
+    background: var(--panel); border-left: 3px solid var(--hl);
+    border-radius: 4px; padding: 7px 9px; font-size: 12.5px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  .mnote.sugg { border-left-color: var(--sugg-border); background: #faf5ff; }
+  .mnote.outline { box-shadow: 0 0 0 2px var(--ink); }
+  .mnote .quote { color: var(--muted); font-style: italic; margin-bottom: 3px; }
+  .mnote .body { white-space: pre-wrap; }
+  .mnote .tag {
+    display: inline-block; font-size: 10px; font-weight: 700;
+    color: var(--sugg-border); text-transform: uppercase; margin-bottom: 3px;
+  }
+  .mnote .acts { margin-top: 5px; display: flex; gap: 6px; }
+  .mnote .acts button {
+    border: 1px solid var(--line); background: var(--bg); font: inherit;
+    font-size: 11px; padding: 2px 8px; border-radius: 5px; cursor: pointer;
+  }
+  .mnote .acts .accept { border-color: var(--ok); color: var(--ok); }
+  .mnote .acts .reject { border-color: var(--role-error); color: var(--role-error); }
+
+  /* Selecting text is how a failure gets recorded, so annotatable content
+     advertises itself on hover rather than leaving the reviewer guessing. */
+  [data-annotatable] { cursor: text; }
+  [data-annotatable]:hover { background: rgba(253,230,138,.18); border-radius: 3px; }
+
+  #popover {
+    position: absolute; z-index: 80; display: none;
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 8px; padding: 8px; box-shadow: 0 4px 14px rgba(0,0,0,.14);
+    width: 320px;
+  }
+  #popover input {
+    width: 100%; border: 1px solid var(--line); border-radius: 6px;
+    padding: 7px 9px; font: inherit; font-size: 13px;
+  }
+  #popover .hint { color: var(--muted); font-size: 11px; margin-top: 5px; }
+
+  /* no-failure control: an explicit clean verdict, so a reviewed trace is
+     distinguishable from an unopened one. */
+  .verdict { max-width: 1020px; margin: 6px auto 18px; }
+  .verdict .vhow {
+    font-size: 12.5px; color: var(--muted); line-height: 1.6;
+    background: #f9fafb; border: 1px solid var(--line);
+    border-radius: 8px; padding: 8px 12px; margin-bottom: 10px;
+  }
+  .verdict .vhow b { color: var(--ink); }
+  .verdict .vsep { margin: 0 6px; opacity: .5; }
+  .vrow {
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    padding: 5px 0;
+  }
+  .vlabel { font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .04em; min-width: 78px; }
+  .vstat { font-size: 12.5px; flex: 1; }
+  .vstat.coded { color: var(--role-error); font-weight: 600; }
+  .vstat.clean { color: var(--ok); font-weight: 600; }
+  .vstat.todo  { color: var(--muted); }
+  .verdict button {
+    border: 1px solid var(--line); background: var(--panel); font: inherit;
+    font-size: 13px; padding: 6px 12px; border-radius: 6px; cursor: pointer;
+  }
+  .verdict button.on { background: var(--ok); color: #fff; border-color: var(--ok); }
+  .verdict button[disabled] { opacity: .4; cursor: not-allowed; }
+
+  /* ---------- progress / label views ---------- */
+  .panel-wrap { max-width: 1100px; margin: 20px auto; padding: 0 18px 80px; }
+  .card { background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; padding: 16px; margin-bottom: 18px; }
+  .card h2 { font-size: 14px; margin: 0 0 12px; text-transform: uppercase;
+    letter-spacing: .05em; color: var(--muted); }
+  .bar { height: 10px; background: var(--line); border-radius: 6px; overflow: hidden; }
+  .bar > div { height: 100%; background: var(--ok); }
+  .kv { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 10px; }
+  .kv div { font-size: 13px; }
+  .kv b { font-size: 20px; display: block; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; font-size: 12px;
+    text-transform: uppercase; letter-spacing: .04em; }
+  td.mono, th.mono { font-family: "SF Mono", ui-monospace, monospace; font-size: 12px; }
+  .lab { display: flex; gap: 4px; }
+  .lab button {
+    border: 1px solid var(--line); background: var(--bg); font: inherit;
+    font-size: 11px; padding: 2px 9px; border-radius: 5px; cursor: pointer;
+  }
+  .lab button.fail.on { background: var(--role-error); color: #fff; border-color: var(--role-error); }
+  .lab button.pass.on { background: var(--ok); color: #fff; border-color: var(--ok); }
+  tr.unset td { background: #fffbeb; }
+  .treemap { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tmblock { border-radius: 8px; padding: 10px 12px; color: #fff; min-width: 130px; }
+  .tmblock .n { font-size: 22px; font-weight: 700; }
+  .tmblock .d { font-size: 11px; opacity: .9; }
+  #map { width: 100%; height: 560px; display: block; }
+  .empty { color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Cartwheel <span class="dim">error analysis &mdash; HW4</span></h1>
+  <div class="views">
+    <button data-view="session" class="active">Session</button>
+    <button data-view="map">Map</button>
+    <button data-view="progress">Progress</button>
+    <button data-view="label">Label</button>
+  </div>
+  <div class="spacer"></div>
+  <div class="counts" id="counts"></div>
+  <div class="nav">
+    <button id="prev" title="previous session (j)">&#8249;</button>
+    <span class="pos" id="pos"></span>
+    <button id="next" title="next session (k)">&#8250;</button>
+  </div>
+</header>
+
+<div id="session-view" class="view active">
+  <div class="sess-header" id="sess-header"></div>
+  <div class="verdict" id="verdict"></div>
+  <div class="body-wrap">
+    <div class="body-col" id="body-col"></div>
+    <div class="margin-col" id="margin-col"></div>
+  </div>
+</div>
+
+<div id="map-view" class="view"><div class="panel-wrap">
+  <div class="card"><h2>Trace map</h2><canvas id="map"></canvas>
+  <div class="empty" id="map-empty"></div></div>
+</div></div>
+
+<div id="progress-view" class="view"><div class="panel-wrap">
+  <div class="card"><h2>Coverage</h2><div id="coverage"></div></div>
+  <div class="card"><h2>Taxonomy</h2><div class="treemap" id="treemap"></div></div>
+  <div class="card"><h2>Suggestion queue</h2><div id="queue"></div></div>
+</div></div>
+
+<div id="label-view" class="view"><div class="panel-wrap">
+  <div class="card"><h2>Structured labeling</h2>
+    <div class="empty" id="label-empty"></div>
+    <div style="overflow-x:auto"><table id="label-table"></table></div>
+  </div>
+</div></div>
+
+<div id="popover">
+  <input id="note-input" placeholder="What went wrong? (Enter to save)" />
+  <div class="hint">Describe the failure in your own words. No categories yet.</div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API = {
+  async get(path) { const r = await fetch(path); return r.json(); },
+  async post(path, data) {
+    const r = await fetch(path, {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(data)});
+    return r.json();
+  }
+};
+
+const state = {
+  sessions: [], cur: 0, annotations: [], suggestions: [],
+  patterns: {}, labels: [], progress: {}, graph: {nodes:[],clusters:[]},
+  pending: null, source: ''
+};
+
+const ROLE_LABEL = {
+  user: 'User', assistant: 'Assistant',
+  tool_call: 'Tool call', tool_result: 'Tool result'
+};
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function clip(s, n) { s = String(s||''); return s.length > n ? s.slice(0,n)+'…' : s; }
+function pretty(v) { try { return JSON.stringify(v, null, 2); } catch { return String(v); } }
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('show'), 2600);
+}
+
+async function loadAll() {
+  const [sess, ann, sugg, pat, lab, prog, graph] = await Promise.all([
+    API.get('/api/sessions'), API.get('/api/annotations'), API.get('/api/suggestions'),
+    API.get('/api/patterns'), API.get('/api/labels'), API.get('/api/progress'),
+    API.get('/api/graph')
+  ]);
+  state.sessions = sess.sessions || [];
+  state.source = sess.source || '';
+  state.annotations = asList(ann);
+  state.suggestions = asList(sugg);
+  state.patterns = pat || {};
+  state.labels = lab || [];
+  state.progress = prog || {};
+  state.graph = graph || {nodes:[],clusters:[]};
+}
+function asList(a) {
+  if (Array.isArray(a)) return a;
+  if (a && Array.isArray(a.annotations)) return a.annotations;
+  return [];
+}
+
+function curSession() { return state.sessions[state.cur]; }
+function traceIds(s) { return (s.traces||[]).map(t=>t.trace_id); }
+
+// ---------- session rendering ----------
+
+function renderHeader() {
+  const s = curSession();
+  if (!s) return;
+  const ids = traceIds(s);
+  const reviewed = ids.every(id => state.annotations.some(a => a.trace_id === id));
+  const el = document.getElementById('sess-header');
+  el.innerHTML = `
+    <span class="sid mono">${esc(s.session_id.slice(0,16))}</span>
+    <span class="pill">${esc(s.role || '?')}</span>
+    ${s.traces.length > 1 ? `<span class="pill">${s.traces.length} turns</span>` : ''}
+    ${reviewed ? '<span class="reviewed">reviewed</span>' : ''}
+    <span class="meta">user ${esc(s.user_id)} &middot; ${esc(s.scenario_id)} &middot;
+      ${s.features.tool_call_count} tool calls &middot; ${s.features.tokens} tokens</span>
+    ${(s.flags||[]).map(f=>`<span class="flag">${esc(f)}</span>`).join('')}
+  `;
+  renderVerdict();
+}
+
+// Open coding has two possible verdicts per trace and they are recorded
+// differently on purpose (SKILL.md phase 3: no predefined labels in the trace
+// view during open coding).
+//
+//   failure found -> select the text where it happens and describe it. The
+//                    annotation is the failure record; it carries the evidence
+//                    that a category name would throw away.
+//   no failure    -> nothing to select, so it needs a button. Recording it
+//                    explicitly is what separates a reviewed-and-clean trace
+//                    from one nobody has opened.
+//
+// Binary Fail/Pass per mode comes later, in the Label view, once the taxonomy
+// has stabilized.
+function renderVerdict() {
+  const s = curSession(); if (!s) return;
+  const el = document.getElementById('verdict');
+
+  const rows = s.traces.map((t, i) => {
+    const notes = state.annotations.filter(
+      a => a.trace_id === t.trace_id && !a.no_failure);
+    const clean = state.annotations.some(
+      a => a.trace_id === t.trace_id && a.no_failure);
+    const label = s.traces.length > 1 ? `Turn ${i+1}` : 'This trace';
+
+    let status;
+    if (notes.length) {
+      status = `<span class="vstat coded">${notes.length} failure note${
+        notes.length>1?'s':''} &mdash; open coded</span>`;
+    } else if (clean) {
+      status = `<span class="vstat clean">no failure observed</span>`;
+    } else {
+      status = `<span class="vstat todo">not yet reviewed</span>`;
+    }
+
+    return `<div class="vrow">
+      <span class="vlabel">${label}</span>
+      ${status}
+      <button class="${clean?'on':''}" data-clean="${esc(t.trace_id)}"
+        ${notes.length ? 'disabled title="This trace already has a failure note"' : ''}>
+        ${clean ? '&#10003; ' : ''}No failure observed</button>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="vhow">
+      <b>Found a failure?</b> Select the text where it happens and describe it
+      in your own words &mdash; that note is the failure record. Read only until
+      the <i>first</i> failure, then stop.
+      <span class="vsep">&middot;</span>
+      <b>Nothing wrong?</b> Press the button.
+      <span class="vsep">&middot;</span>
+      No categories yet: Fail/Pass per mode comes later in the Label view.
+    </div>
+    ${rows}`;
+
+  el.querySelectorAll('[data-clean]').forEach(b => {
+    b.onclick = () => toggleNoFailure(b.dataset.clean);
+  });
+}
+
+function renderSession() {
+  const s = curSession();
+  const col = document.getElementById('body-col');
+  if (!s) { col.innerHTML = '<div class="empty">No sessions loaded.</div>'; return; }
+
+  let html = '';
+  s.traces.forEach((t, ti) => {
+    const multi = s.traces.length > 1;
+    html += `<div class="turn" data-trace="${esc(t.trace_id)}">`;
+    html += `<div class="turn-bar">
+      <span class="label">${multi ? `Turn ${ti+1} of ${s.traces.length}` : 'Conversation'}</span>
+      <span class="tid mono">${esc(t.trace_id.slice(0,12))}</span>
+      <a href="${esc(t.permalink)}" target="_blank" rel="noopener">Langfuse &#8599;</a>
+    </div>`;
+    html += renderSegments(t.segments, t.trace_id);
+    html += `</div>`;
+  });
+  col.innerHTML = html;
+  applyHighlights();
+  layoutMargin();
+}
+
+// Group a tool_call with the tool_result that follows it (Gestalt common
+// region). Everything else renders as its own step.
+function renderSegments(segments, traceId) {
+  let html = '';
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    if (seg.role === 'tool_call') {
+      const next = segments[i+1];
+      const paired = next && next.role === 'tool_result' && next.name === seg.name;
+      html += `<div class="step">${renderMsg(seg, traceId, i)}`;
+      if (paired) { html += renderMsg(next, traceId, i+1); i++; }
+      html += `</div>`;
+    } else {
+      html += `<div class="step">${renderMsg(seg, traceId, i)}</div>`;
+    }
+  }
+  return html;
+}
+
+function renderMsg(seg, traceId, idx) {
+  const role = seg.role;
+  const attr = `data-role="${role}" data-trace="${esc(traceId)}" data-seg="${idx}"`;
+
+  if (role === 'user' || role === 'assistant') {
+    return `<div class="msg" ${attr}>
+      <div class="role">${ROLE_LABEL[role]}</div>
+      <div class="text" data-annotatable="1">${esc(seg.text)}</div>
+    </div>`;
+  }
+
+  if (role === 'tool_call') {
+    const args = seg.arguments && Object.keys(seg.arguments).length
+      ? `<pre class="json args-inline">${esc(pretty(seg.arguments))}</pre>` : '';
+    return `<div class="msg" ${attr}>
+      <div class="role"><span class="fn">${esc(seg.name)}</span></div>
+      ${args}
+    </div>`;
+  }
+
+  // tool_result: lift ok / status / error / policy ids into chips so the
+  // failure-bearing fields are visible without expanding the JSON.
+  const c = seg.content || {};
+  const failed = c.ok === false;
+  const chips = [];
+  if (c.ok === true) chips.push('<span class="chip ok">ok</span>');
+  if (failed) chips.push(`<span class="chip err">${esc(c.error || 'error')}</span>`);
+  if (c.status) {
+    const cls = String(c.status).includes('queued') ? 'queued' : 'ok';
+    chips.push(`<span class="chip ${cls}">${esc(c.status)}</span>`);
+  }
+  if (c.policy_id) chips.push(`<span class="chip policy">${esc(c.policy_id)}</span>`);
+  (c.results || []).slice(0,4).forEach(r => {
+    if (r.policy_id) chips.push(`<span class="chip policy">${esc(r.policy_id)}</span>`);
+  });
+  if (c.refund_id) chips.push(`<span class="chip policy">refund ${esc(c.refund_id)}</span>`);
+  if (c.ticket_id) chips.push(`<span class="chip policy">ticket ${esc(c.ticket_id)}</span>`);
+  if (typeof c.amount_usd === 'number') chips.push(`<span class="chip queued">$${esc(c.amount_usd)}</span>`);
+
+  const json = pretty(c);
+  const body = json.length > 600
+    ? `<details class="body"><summary>${esc(clip(c.reason || summarize(c), 110))} &mdash; expand (${json.length} chars)</summary>
+       <pre class="json" data-annotatable="1">${esc(json)}</pre></details>`
+    : `<pre class="json" data-annotatable="1">${esc(json)}</pre>`;
+
+  return `<div class="msg ${failed?'failed':''}" ${attr}>
+    <div class="role"><span class="fn">${esc(seg.name)}</span>${chips.join('')}</div>
+    ${body}
+  </div>`;
+}
+
+function summarize(c) {
+  if (c.reason) return c.reason;
+  if (Array.isArray(c.orders)) return `${c.orders.length} order(s)`;
+  if (Array.isArray(c.results)) return `${c.results.length} policy result(s)`;
+  if (Array.isArray(c.products)) return `${c.products.length} product(s)`;
+  if (c.title) return c.title;
+  return 'tool result';
+}
+
+// ---------- annotation ----------
+
+function itemsForSession() {
+  const s = curSession(); if (!s) return [];
+  const ids = new Set(traceIds(s));
+  const anns = state.annotations
+    .filter(a => ids.has(a.trace_id) && a.text && !a.no_failure)
+    .map(a => ({...a, kind:'human'}));
+  const sugg = state.suggestions
+    .filter(a => ids.has(a.trace_id) && a.text)
+    .map(a => ({...a, kind:'sugg'}));
+  return [...anns, ...sugg];
+}
+
+// Wrap the saved quote where it appears in the rendered text.
+function applyHighlights() {
+  const items = itemsForSession();
+  items.forEach(item => {
+    const scope = document.querySelector(`.turn[data-trace="${CSS.escape(item.trace_id)}"]`);
+    if (!scope) return;
+    const nodes = scope.querySelectorAll('[data-annotatable]');
+    for (const node of nodes) {
+      if (node.querySelector('.hl')) continue;
+      const idx = node.textContent.indexOf(item.text);
+      if (idx < 0) continue;
+      const range = document.createRange();
+      const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+      let seen = 0, startNode = null, startOff = 0, endNode = null, endOff = 0, n;
+      while ((n = walker.nextNode())) {
+        const len = n.textContent.length;
+        if (!startNode && seen + len > idx) { startNode = n; startOff = idx - seen; }
+        if (startNode && seen + len >= idx + item.text.length) {
+          endNode = n; endOff = idx + item.text.length - seen; break;
+        }
+        seen += len;
+      }
+      if (!startNode || !endNode) break;
+      try {
+        range.setStart(startNode, startOff); range.setEnd(endNode, endOff);
+        const span = document.createElement('span');
+        span.className = 'hl' + (item.kind === 'sugg' ? ' sugg' : '');
+        span.dataset.anno = item.id;
+        range.surroundContents(span);
+      } catch { /* selection spans elements; skip highlight, note still shows */ }
+      break;
+    }
+  });
+}
+
+function layoutMargin() {
+  const col = document.getElementById('margin-col');
+  col.innerHTML = '';
+  const items = itemsForSession();
+  if (!items.length) return;
+  const colRect = col.getBoundingClientRect();
+  let lastBottom = -Infinity;
+
+  items.forEach(item => {
+    const hl = document.querySelector(`.hl[data-anno="${CSS.escape(String(item.id))}"]`);
+    const note = document.createElement('div');
+    note.className = 'mnote' + (item.kind === 'sugg' ? ' sugg' : '');
+    note.innerHTML =
+      (item.kind === 'sugg' ? '<div class="tag">agent suggestion</div>' : '') +
+      `<div class="quote">&ldquo;${esc(clip(item.text, 60))}&rdquo;</div>` +
+      `<div class="body">${esc(item.note || '')}</div>` +
+      (item.kind === 'sugg'
+        ? `<div class="acts"><button class="accept">Accept</button><button class="reject">Dismiss</button></div>`
+        : `<div class="acts"><button class="del">Delete</button></div>`);
+    col.appendChild(note);
+
+    // Offset from the highlight's position relative to the margin container.
+    // No scrollTop: getBoundingClientRect is already viewport-relative, so
+    // adding it would double-count the scroll offset.
+    let top = 0;
+    if (hl) top = hl.getBoundingClientRect().top - colRect.top;
+    top = Math.max(top, lastBottom + 8);
+    note.style.top = top + 'px';
+    lastBottom = top + note.offsetHeight;
+
+    if (hl) {
+      note.addEventListener('mouseenter', () => hl.classList.add('outline'));
+      note.addEventListener('mouseleave', () => hl.classList.remove('outline'));
+      hl.addEventListener('mouseenter', () => note.classList.add('outline'));
+      hl.addEventListener('mouseleave', () => note.classList.remove('outline'));
+    }
+    const del = note.querySelector('.del');
+    if (del) del.onclick = () => deleteAnnotation(item.id);
+    const acc = note.querySelector('.accept');
+    if (acc) acc.onclick = () => acceptSuggestion(item.id);
+    const rej = note.querySelector('.reject');
+    if (rej) rej.onclick = () => dismissSuggestion(item.id);
+  });
+}
+
+document.getElementById('body-col').addEventListener('mouseup', () => {
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed) return;
+  const text = sel.toString().trim();
+  if (!text) return;
+  const node = sel.anchorNode && sel.anchorNode.parentElement;
+  const host = node && node.closest('[data-annotatable]');
+  if (!host) return;
+  const turn = host.closest('.turn');
+  if (!turn) return;
+
+  // Wrap the selection in a visible pending highlight before focusing the
+  // input: focusing clears the native selection, and without this the human
+  // loses sight of what they are annotating.
+  const range = sel.getRangeAt(0);
+  let span;
+  try {
+    span = document.createElement('span');
+    span.className = 'hl pending-highlight';
+    range.surroundContents(span);
+  } catch { return; }
+  sel.removeAllRanges();
+
+  state.pending = {text, trace_id: turn.dataset.trace, span};
+  const pop = document.getElementById('popover');
+  const r = span.getBoundingClientRect();
+  pop.style.display = 'block';
+  pop.style.top = (window.scrollY + r.bottom + 8) + 'px';
+  pop.style.left = Math.min(window.scrollX + r.left, window.innerWidth - 340) + 'px';
+  const input = document.getElementById('note-input');
+  input.value = ''; input.focus();
+});
+
+document.getElementById('note-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); commitAnnotation(); }
+  if (e.key === 'Escape') { e.preventDefault(); cancelAnnotation(); }
+});
+document.addEventListener('mousedown', e => {
+  const pop = document.getElementById('popover');
+  if (pop.style.display === 'block' && !pop.contains(e.target)) cancelAnnotation();
+});
+
+function clearPending() {
+  const pop = document.getElementById('popover');
+  pop.style.display = 'none';
+  if (state.pending && state.pending.span) {
+    const span = state.pending.span;
+    const parent = span.parentNode;
+    if (parent) { while (span.firstChild) parent.insertBefore(span.firstChild, span);
+      parent.removeChild(span); parent.normalize(); }
+  }
+  state.pending = null;
+}
+function cancelAnnotation() { clearPending(); renderSession(); }
+
+async function commitAnnotation() {
+  const note = document.getElementById('note-input').value.trim();
+  if (!note || !state.pending) { cancelAnnotation(); return; }
+  const rec = {
+    id: 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+    trace_id: state.pending.trace_id,
+    text: state.pending.text,
+    note, source: 'human', ts: new Date().toISOString()
+  };
+  state.annotations.push(rec);
+  clearPending();
+  await saveAnnotations();
+  renderHeader(); renderSession(); updateCounts();
+  toast('Annotation saved');
+}
+
+async function toggleNoFailure(traceId) {
+  const existing = state.annotations.find(a => a.trace_id === traceId && a.no_failure);
+  if (existing) {
+    state.annotations = state.annotations.filter(a => a !== existing);
+  } else {
+    state.annotations.push({
+      id: 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+      trace_id: traceId, text: '', note: 'no failure observed',
+      no_failure: true, source: 'human', ts: new Date().toISOString()
+    });
+  }
+  await saveAnnotations();
+  renderHeader(); updateCounts();
+}
+
+async function deleteAnnotation(id) {
+  state.annotations = state.annotations.filter(a => a.id !== id);
+  await saveAnnotations();
+  renderHeader(); renderSession(); updateCounts();
+}
+async function acceptSuggestion(id) {
+  const s = state.suggestions.find(x => x.id === id);
+  if (!s) return;
+  state.annotations.push({...s, source: 'accepted_suggestion', ts: new Date().toISOString()});
+  state.suggestions = state.suggestions.filter(x => x.id !== id);
+  await Promise.all([saveAnnotations(), API.post('/api/suggestions', state.suggestions)]);
+  renderSession(); updateCounts(); toast('Suggestion accepted');
+}
+async function dismissSuggestion(id) {
+  const s = state.suggestions.find(x => x.id === id);
+  if (s) s.decision = 'rejected';
+  state.suggestions = state.suggestions.filter(x => x.id !== id);
+  await API.post('/api/suggestions', state.suggestions.concat(s ? [s] : []));
+  state.suggestions = state.suggestions.filter(x => x.decision !== 'rejected');
+  renderSession(); toast('Suggestion dismissed');
+}
+
+async function saveAnnotations() {
+  try { localStorage.setItem('cw_annotations', JSON.stringify(state.annotations)); } catch {}
+  await API.post('/api/annotations', state.annotations);
+}
+
+// ---------- progress ----------
+
+function renderProgress() {
+  const p = state.progress || {};
+  const done = p.traces_reviewed || 0, target = p.target || 100;
+  document.getElementById('coverage').innerHTML = `
+    <div class="kv">
+      <div><b>${done}</b> traces reviewed</div>
+      <div><b>${target}</b> target</div>
+      <div><b>${p.sessions||0}</b> sessions</div>
+      <div><b>${p.traces_total||0}</b> traces in store</div>
+      <div><b>${p.missing_judgments||0}</b> missing judgments</div>
+    </div>
+    <div class="bar"><div style="width:${Math.min(100, done/target*100)}%"></div></div>
+    <p class="empty">Source: ${esc(p.source||'')}</p>
+    ${renderBatches(p.batches||{})}`;
+  renderTreemap();
+  renderQueue();
+}
+
+function renderBatches(b) {
+  const keys = Object.keys(b);
+  if (!keys.length) return '<p class="empty">No sample manifest yet &mdash; batches appear once traces are selected.</p>';
+  return `<table><tr><th>Batch</th><th>Selected</th><th>Reviewed</th></tr>` +
+    keys.map(k=>`<tr><td>${esc(k)}</td><td>${b[k].selected}</td><td>${b[k].reviewed}</td></tr>`).join('') +
+    `</table>`;
+}
+
+const TM_COLORS = ['#2563eb','#059669','#b45309','#7c3aed','#dc2626','#0891b2','#be185d','#4338ca'];
+function renderTreemap() {
+  const pats = state.patterns || {};
+  const keys = Object.keys(pats);
+  const el = document.getElementById('treemap');
+  if (!keys.length) { el.innerHTML = '<p class="empty">No taxonomy yet. Modes appear here as your notes are grouped.</p>'; return; }
+  el.innerHTML = keys.map((k,i) => {
+    const m = pats[k] || {};
+    const n = (m.example_trace_ids||[]).length || m.count || 0;
+    return `<div class="tmblock" style="background:${TM_COLORS[i%TM_COLORS.length]}">
+      <div class="n">${n}</div><div class="d"><b>${esc(k)}</b></div>
+      <div class="d">${esc(clip(m.definition||'',70))}</div></div>`;
+  }).join('');
+}
+
+function renderQueue() {
+  const q = state.suggestions.filter(s => !s.decision);
+  const el = document.getElementById('queue');
+  if (!q.length) { el.innerHTML = '<p class="empty">No pending suggestions.</p>'; return; }
+  el.innerHTML = `<table><tr><th>Trace</th><th>Mode</th><th>Quote</th><th></th></tr>` +
+    q.map(s=>`<tr><td class="mono">${esc(String(s.trace_id).slice(0,12))}</td>
+      <td>${esc(s.mode||'')}</td><td>${esc(clip(s.text,60))}</td>
+      <td><div class="lab">
+        <button onclick="acceptSuggestion('${esc(s.id)}')">Accept</button>
+        <button onclick="dismissSuggestion('${esc(s.id)}')">Dismiss</button>
+      </div></td></tr>`).join('') + `</table>`;
+}
+
+// ---------- structured labeling ----------
+
+function renderLabelView() {
+  const modes = Object.keys(state.patterns || {});
+  const empty = document.getElementById('label-empty');
+  const table = document.getElementById('label-table');
+  if (!modes.length) {
+    empty.textContent = 'No final modes yet. The taxonomy must stabilize before structured labeling.';
+    table.innerHTML = ''; return;
+  }
+  const reviewed = [...new Set(state.annotations.map(a=>a.trace_id))];
+  if (!reviewed.length) { empty.textContent = 'No reviewed traces yet.'; table.innerHTML=''; return; }
+  empty.textContent = '';
+
+  const byPair = {};
+  state.labels.forEach(l => { byPair[l.trace_id+'|'+l.mode] = l.label; });
+
+  let html = `<tr><th class="mono">Trace</th><th>Role</th>` +
+    modes.map(m=>`<th>${esc(m)}</th>`).join('') + `</tr>`;
+  reviewed.forEach(tid => {
+    const sess = state.sessions.find(s => traceIds(s).includes(tid));
+    const missing = modes.some(m => byPair[tid+'|'+m] === undefined);
+    html += `<tr class="${missing?'unset':''}"><td class="mono">${esc(tid.slice(0,12))}</td>
+      <td>${esc(sess ? sess.role : '')}</td>` +
+      modes.map(m => {
+        const v = byPair[tid+'|'+m];
+        return `<td><div class="lab">
+          <button class="fail ${v===1?'on':''}" onclick="setLabel('${esc(tid)}','${esc(m)}',1)">Fail</button>
+          <button class="pass ${v===0?'on':''}" onclick="setLabel('${esc(tid)}','${esc(m)}',0)">Pass</button>
+        </div></td>`;
+      }).join('') + `</tr>`;
+  });
+  table.innerHTML = html;
+}
+
+async function setLabel(traceId, mode, label) {
+  const res = await API.post('/api/labels', {
+    trace_id: traceId, mode, label, source: 'human', ts: new Date().toISOString()
+  });
+  if (res && res.ok) {
+    state.labels = state.labels.filter(l => !(l.trace_id===traceId && l.mode===mode));
+    state.labels.push(res.written);
+    renderLabelView();
+    toast(res.langfuse ? 'Saved + Langfuse score written' : 'Saved locally');
+  } else {
+    toast('Save failed: ' + ((res && res.error) || 'unknown'));
+  }
+}
+
+// ---------- map ----------
+
+function renderMap() {
+  const canvas = document.getElementById('map');
+  const nodes = (state.graph && state.graph.nodes) || [];
+  const note = document.getElementById('map-empty');
+  if (!nodes.length) {
+    note.textContent = 'No projection yet. The agent writes state/graph.json during sampling.';
+    canvas.style.display = 'none'; return;
+  }
+  note.textContent = ''; canvas.style.display = 'block';
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = canvas.clientWidth * dpr; canvas.height = canvas.clientHeight * dpr;
+  const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
+  const W = canvas.clientWidth, H = canvas.clientHeight, pad = 30;
+  const xs = nodes.map(n=>n.x), ys = nodes.map(n=>n.y);
+  const x0=Math.min(...xs), x1=Math.max(...xs), y0=Math.min(...ys), y1=Math.max(...ys);
+  const sx = v => pad + (v-x0)/((x1-x0)||1)*(W-2*pad);
+  const sy = v => pad + (v-y0)/((y1-y0)||1)*(H-2*pad);
+  const annotated = new Set(state.annotations.map(a=>a.trace_id));
+  ctx.clearRect(0,0,W,H);
+  nodes.forEach(n => {
+    const isAnn = annotated.has(n.trace_id);
+    ctx.beginPath();
+    ctx.arc(sx(n.x), sy(n.y), isAnn ? 5 : 3, 0, Math.PI*2);
+    ctx.fillStyle = isAnn ? '#ea580c' : TM_COLORS[(n.cluster||0)%TM_COLORS.length];
+    ctx.globalAlpha = isAnn ? 1 : .55;
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+}
+
+// ---------- navigation ----------
+
+function updateCounts() {
+  const reviewed = new Set(state.annotations.map(a=>a.trace_id)).size;
+  document.getElementById('counts').textContent =
+    `${reviewed} traces reviewed · ${state.annotations.length} notes · ${state.sessions.length} sessions`;
+}
+function updatePos() {
+  document.getElementById('pos').textContent =
+    state.sessions.length ? `${state.cur+1} / ${state.sessions.length}` : '—';
+}
+function go(delta) {
+  if (!state.sessions.length) return;
+  state.cur = (state.cur + delta + state.sessions.length) % state.sessions.length;
+  renderHeader(); renderSession(); updatePos();
+  window.scrollTo(0,0);
+}
+document.getElementById('prev').onclick = () => go(-1);
+document.getElementById('next').onclick = () => go(1);
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === 'j') go(-1);
+  if (e.key === 'k') go(1);
+});
+
+function switchView(name) {
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById(name+'-view').classList.add('active');
+  document.querySelectorAll('.views button').forEach(b=>
+    b.classList.toggle('active', b.dataset.view===name));
+  if (name === 'progress') renderProgress();
+  if (name === 'label') renderLabelView();
+  if (name === 'map') renderMap();
+}
+document.querySelectorAll('.views button').forEach(b=>{
+  b.onclick = () => switchView(b.dataset.view);
+});
+
+window.addEventListener('resize', () => { layoutMargin(); renderMap(); });
+
+async function poll() {
+  try {
+    const [sugg, pat, prog] = await Promise.all([
+      API.get('/api/suggestions'), API.get('/api/patterns'), API.get('/api/progress')
+    ]);
+    const before = state.suggestions.length;
+    state.suggestions = asList(sugg);
+    state.patterns = pat || {};
+    state.progress = prog || {};
+    const pending = state.suggestions.filter(s=>!s.decision).length;
+    if (state.suggestions.length > before) {
+      toast(`${pending} agent suggestion(s) waiting`);
+      renderSession();
+    }
+  } catch {}
+  setTimeout(poll, 4000);
+}
+
+(async function boot() {
+  await loadAll();
+  renderHeader(); renderSession(); updateCounts(); updatePos();
+  poll();
+})();
+</script>
+</body>
+</html>

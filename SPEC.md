@@ -104,7 +104,20 @@ The following cases always go to a human:
 
 Requirements that do not fit in the sections above, including tone and style guidelines.
 
-- **RESP-1.** Cite the policy identifier for every claim derived from a policy document.
+- **RESP-1.** Ground every claim derived from a policy document in that
+  document, and make the grounding checkable. The audience decides how the
+  citation appears.
+  - **RESP-1a.** For shopper-facing replies, state the rule in plain language
+    and name the policy by its human-readable title when a name helps (for
+    example "Cartwheel's return policy"). Do not print the raw policy
+    identifier, such as `cw-returns` or `store-juniper-home-goods-policy`.
+    Identifiers are internal retrieval keys, and a shopper cannot look one up.
+  - **RESP-1b.** For merchant and support replies, cite the policy identifier,
+    because those callers work with the policy catalogue directly and use the
+    identifier to find the source document.
+  - **RESP-1c.** Record the identifier of every policy document the reply
+    relies on in the trace, whatever the audience, so a reviewer can check the
+    claim against its source.
 - **RESP-2.** Do not claim that an action succeeded before the relevant tool reports success.
 - **RESP-3.** State when required information is missing or inconsistent, rather than inventing a value.
 - **RESP-4.** Explain refusals and escalations without revealing inaccessible order or user information.

@@ -112,17 +112,50 @@ def load_traces(
             from analysis.helpers import langfuse_io
 
             if langfuse_io.is_configured():
-                traces = load_live_traces(limit=limit)
+                traces = _fetch_with_retry(limit)
                 if traces:
                     CACHE.parent.mkdir(parents=True, exist_ok=True)
                     CACHE.write_text(
                         json.dumps({"source": "langfuse", "traces": traces})
                     )
                     return traces, "langfuse"
-        except Exception:
+        except Exception as exc:
             if source == "langfuse":
                 raise
+            # Falling back to the Module 1 export silently is dangerous: that
+            # file holds a different model's traces, so a transient Langfuse
+            # timeout would otherwise serve the wrong store under a label the
+            # reviewer does not read closely.
+            print(f"WARNING: Langfuse fetch failed ({type(exc).__name__}: {exc})")
+            print("WARNING: falling back to the Module 1 export, which is a")
+            print("WARNING: DIFFERENT trace set. Re-run with --source langfuse")
+            print("WARNING: to fail loudly instead.")
     return load_offline_traces(), "export"
+
+
+def _fetch_with_retry(limit: int, attempts: int = 3, delay: float = 20.0):
+    """Pull from Langfuse, retrying the transient timeouts it returns.
+
+    Paging several hundred traces one ``trace.get`` at a time makes the legacy
+    endpoint return 422 "Request timed out" under load. The failure is
+    transient and a later attempt usually succeeds, so a single failure should
+    not drop the session onto the offline export.
+    """
+    import time
+
+    last: Exception | None = None
+    for attempt in range(1, attempts + 1):
+        try:
+            return load_live_traces(limit=limit)
+        except Exception as exc:
+            last = exc
+            if attempt < attempts:
+                print(
+                    f"Langfuse fetch attempt {attempt}/{attempts} failed "
+                    f"({type(exc).__name__}); retrying in {delay:g}s"
+                )
+                time.sleep(delay)
+    raise last if last else RuntimeError("Langfuse fetch failed")
 
 
 def _session_metadata(trace: dict[str, Any]) -> dict[str, Any]:

@@ -9,6 +9,8 @@ data/cartwheel.db
 
 # Local conversation state and scenario/replay run outputs.
 .sessions.db
+.sessions.db-shm
+.sessions.db-wal
 scenarios/results/
 replay/results/
 
@@ -21,3 +23,8 @@ scenarios/demo_pilot_gt.json
 
 # HW4 review app: regenerable Langfuse trace cache (~21MB)
 analysis/state/trace_cache.json
+
+# HW4 review app runtime scratch: written empty on boot, filled during a
+# review session by the sampling and projection steps.
+analysis/state/graph.json
+analysis/state/samples.json

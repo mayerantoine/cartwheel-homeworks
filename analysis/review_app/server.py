@@ -46,13 +46,47 @@ SESSIONS: list[dict[str, Any]] = []
 SOURCE = "unset"
 
 
-def _load(source: str, limit: int, use_cache: bool = True) -> None:
+def _load(
+    source: str,
+    limit: int,
+    use_cache: bool = True,
+    prefix: str | None = "support-",
+) -> None:
+    """Load traces and group them into sessions.
+
+    ``prefix`` restricts the review set by scenario id. It defaults to
+    ``support-`` because the store also holds HW1 line traces, HW3 pilot
+    traces, and smoke tests, all from the earlier model. Sessions sort oldest
+    first, so without the filter those leftovers occupy the first ~70 screens
+    and the reviewer pages through another model's behaviour before reaching
+    the run they mean to open-code. Pass ``--prefix ''`` to review everything.
+    """
     global SESSIONS, SOURCE
     traces, SOURCE = data.load_traces(
         source=source, limit=limit, use_cache=use_cache
     )
+    total = len(traces)
+    if prefix:
+        traces = [
+            t
+            for t in traces
+            if str((t.get("metadata") or {}).get(data.META_SCENARIO, "")).startswith(
+                prefix
+            )
+        ]
     SESSIONS = data.build_sessions(traces)
-    print(f"loaded {len(traces)} traces from {SOURCE} -> {len(SESSIONS)} sessions")
+
+    models: dict[str, int] = {}
+    for t in traces:
+        for m in t.get("models") or []:
+            models[m] = models.get(m, 0) + 1
+
+    dropped = total - len(traces)
+    print(f"loaded {total} traces from {SOURCE}")
+    if dropped:
+        print(f"  filtered to scenario prefix {prefix!r}: {len(traces)} kept, {dropped} excluded")
+    print(f"  models: {models or 'none'}")
+    print(f"  -> {len(SESSIONS)} sessions")
 
 
 def _reviewed_trace_ids() -> set[str]:
@@ -246,6 +280,12 @@ def main() -> None:
         action="store_true",
         help="re-pull from Langfuse instead of using state/trace_cache.json",
     )
+    parser.add_argument(
+        "--prefix",
+        default="support-",
+        help="only review traces whose cartwheel.scenario_id starts with this "
+        "(default: support-; pass '' to review every trace in the store)",
+    )
     args = parser.parse_args()
 
     try:
@@ -256,7 +296,12 @@ def main() -> None:
         pass
 
     STATE_DIR.mkdir(parents=True, exist_ok=True)
-    _load(args.source, args.limit, use_cache=not args.refresh)
+    _load(
+        args.source,
+        args.limit,
+        use_cache=not args.refresh,
+        prefix=args.prefix or None,
+    )
 
     for endpoint, default in API_DEFAULTS.items():
         target = API_FILES[endpoint]

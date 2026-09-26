@@ -109,6 +109,41 @@ def _manifest() -> dict[str, Any]:
     return _read_json(MANIFEST, {"batches": {}, "traces": {}})
 
 
+def _batch_names() -> list[str]:
+    """Batch names in manifest order, for the session filter."""
+    assigned = _manifest().get("traces", {})
+    names: list[str] = []
+    for entry in assigned.values():
+        name = entry.get("batch") if isinstance(entry, dict) else None
+        if name and name not in names:
+            names.append(name)
+    return sorted(names)
+
+
+def _sessions_with_batches() -> list[dict[str, Any]]:
+    """Annotate each session with the batches its traces belong to.
+
+    The handout selects review batches by trace, while this interface reads by
+    session, so a session carries every batch any of its turns was drawn into.
+    Without this the reviewer has to hunt a 30-trace batch across 250 sessions
+    scattered from position 22 to 250.
+    """
+    assigned = _manifest().get("traces", {})
+    if not assigned:
+        return SESSIONS
+
+    out = []
+    for session in SESSIONS:
+        names: list[str] = []
+        for turn in session["traces"]:
+            entry = assigned.get(turn["trace_id"])
+            name = entry.get("batch") if isinstance(entry, dict) else None
+            if name and name not in names:
+                names.append(name)
+        out.append({**session, "batches": names})
+    return out
+
+
 def _progress() -> dict[str, Any]:
     """Coverage for the progress view.
 
@@ -239,7 +274,13 @@ class AppHandler(ReviewHandler):
             self._send_file(UI_FILE, "text/html; charset=utf-8")
             return
         if path == "/api/sessions":
-            self._send_json({"source": SOURCE, "sessions": SESSIONS})
+            self._send_json(
+                {
+                    "source": SOURCE,
+                    "sessions": _sessions_with_batches(),
+                    "batches": _batch_names(),
+                }
+            )
             return
         if path == "/api/labels":
             self._send_json(_all_labels())

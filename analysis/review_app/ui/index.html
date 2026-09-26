@@ -72,6 +72,12 @@
   .views button.active { background: var(--ink); color: #fff; border-color: var(--ink); }
   .spacer { flex: 1; }
   .counts { color: var(--muted); font-size: 13px; }
+  #batch-filter {
+    font: inherit; font-size: 13px; padding: 5px 8px;
+    border: 1px solid var(--line); border-radius: 6px; background: var(--bg);
+    max-width: 260px;
+  }
+  .chk { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
   .nav { display: flex; gap: 4px; align-items: center; }
   .nav button {
     border: 1px solid var(--line); background: var(--bg);
@@ -294,6 +300,12 @@
     <button data-view="label">Label</button>
   </div>
   <div class="spacer"></div>
+  <select id="batch-filter" title="restrict the session list to one review batch">
+    <option value="">All sessions</option>
+  </select>
+  <label class="chk" title="skip sessions whose traces are all annotated">
+    <input type="checkbox" id="unreviewed-only" /> Unreviewed
+  </label>
   <div class="counts" id="counts"></div>
   <div class="nav">
     <button id="prev" title="previous session (j)">&#8249;</button>
@@ -349,8 +361,25 @@ const API = {
 const state = {
   sessions: [], cur: 0, annotations: [], suggestions: [],
   patterns: {}, labels: [], progress: {}, graph: {nodes:[],clusters:[]},
-  pending: null, source: ''
+  pending: null, source: '',
+  batches: [], batchFilter: '', unreviewedOnly: false, view: []
 };
+
+// The session list the reviewer is actually stepping through. Batches are
+// selected by trace and scattered through the timestamp-ordered list (batch 1
+// lands at positions 22 through 250), so navigation runs over this filtered
+// view rather than over every session in the store.
+function applyFilter(keepSessionId) {
+  const annotated = new Set(state.annotations.map(a => a.trace_id));
+  state.view = state.sessions.filter(s => {
+    if (state.batchFilter && !(s.batches || []).includes(state.batchFilter)) return false;
+    if (state.unreviewedOnly && s.traces.every(t => annotated.has(t.trace_id))) return false;
+    return true;
+  });
+  if (!state.view.length) state.view = state.sessions.slice(0, 0);
+  const idx = keepSessionId ? state.view.findIndex(s => s.session_id === keepSessionId) : -1;
+  state.cur = idx >= 0 ? idx : 0;
+}
 
 const ROLE_LABEL = {
   user: 'User', assistant: 'Assistant',
@@ -378,6 +407,7 @@ async function loadAll() {
   ]);
   state.sessions = sess.sessions || [];
   state.source = sess.source || '';
+  state.batches = sess.batches || [];
   state.annotations = asList(ann);
   state.suggestions = asList(sugg);
   state.patterns = pat || {};
@@ -391,7 +421,7 @@ function asList(a) {
   return [];
 }
 
-function curSession() { return state.sessions[state.cur]; }
+function curSession() { return state.view[state.cur]; }
 function traceIds(s) { return (s.traces||[]).map(t=>t.trace_id); }
 
 // ---------- session rendering ----------
@@ -477,7 +507,16 @@ function renderVerdict() {
 function renderSession() {
   const s = curSession();
   const col = document.getElementById('body-col');
-  if (!s) { col.innerHTML = '<div class="empty">No sessions loaded.</div>'; return; }
+  if (!s) {
+    document.getElementById('sess-header').innerHTML = '';
+    document.getElementById('verdict').innerHTML = '';
+    document.getElementById('margin-col').innerHTML = '';
+    col.innerHTML = state.sessions.length
+      ? '<div class="empty">No sessions match the current filter. ' +
+        'Every session in this batch has been reviewed, or the batch is empty.</div>'
+      : '<div class="empty">No sessions loaded.</div>';
+    return;
+  }
 
   let html = '';
   s.traces.forEach((t, ti) => {
@@ -924,15 +963,34 @@ function renderMap() {
 function updateCounts() {
   const reviewed = new Set(state.annotations.map(a=>a.trace_id)).size;
   document.getElementById('counts').textContent =
-    `${reviewed} traces reviewed · ${state.annotations.length} notes · ${state.sessions.length} sessions`;
+    `${reviewed} traces reviewed · ${state.annotations.length} notes · ` +
+    (state.view.length === state.sessions.length
+      ? `${state.sessions.length} sessions`
+      : `${state.view.length} of ${state.sessions.length} sessions`);
 }
 function updatePos() {
   document.getElementById('pos').textContent =
-    state.sessions.length ? `${state.cur+1} / ${state.sessions.length}` : '—';
+    state.view.length ? `${state.cur+1} / ${state.view.length}` : '0 / 0';
 }
 function go(delta) {
-  if (!state.sessions.length) return;
-  state.cur = (state.cur + delta + state.sessions.length) % state.sessions.length;
+  // Re-apply the filter on navigation, not on annotation: with "Unreviewed"
+  // checked, dropping the current session the moment its first note is saved
+  // would yank it out from under the reviewer mid-read.
+  if (state.unreviewedOnly) {
+    const keep = curSession() && curSession().session_id;
+    const annotated = new Set(state.annotations.map(a => a.trace_id));
+    const before = state.view.length;
+    state.view = state.sessions.filter(s => {
+      if (state.batchFilter && !(s.batches || []).includes(state.batchFilter)) return false;
+      if (s.session_id === keep) return true;
+      return !s.traces.every(t => annotated.has(t.trace_id));
+    });
+    const idx = state.view.findIndex(s => s.session_id === keep);
+    if (idx >= 0) state.cur = idx;
+    if (state.view.length !== before) updateCounts();
+  }
+  if (!state.view.length) return;
+  state.cur = (state.cur + delta + state.view.length) % state.view.length;
   renderHeader(); renderSession(); updatePos();
   window.scrollTo(0,0);
 }
@@ -977,8 +1035,44 @@ async function poll() {
   setTimeout(poll, 4000);
 }
 
+function renderBatchFilter() {
+  const sel = document.getElementById('batch-filter');
+  const counts = {};
+  state.sessions.forEach(s => (s.batches || []).forEach(b => {
+    counts[b] = (counts[b] || 0) + 1;
+  }));
+  sel.innerHTML = `<option value="">All sessions (${state.sessions.length})</option>` +
+    state.batches.map(b =>
+      `<option value="${esc(b)}"${b===state.batchFilter?' selected':''}>${esc(b)} (${counts[b]||0})</option>`
+    ).join('');
+}
+
+function refilter() {
+  const keep = curSession() && curSession().session_id;
+  applyFilter(keep);
+  renderHeader(); renderSession(); updatePos(); updateCounts();
+  window.scrollTo(0, 0);
+}
+
+document.getElementById('batch-filter').onchange = (e) => {
+  state.batchFilter = e.target.value;
+  refilter();
+  toast(state.batchFilter
+    ? `Filtered to ${state.batchFilter}: ${state.view.length} sessions`
+    : `Showing all ${state.view.length} sessions`);
+};
+document.getElementById('unreviewed-only').onchange = (e) => {
+  state.unreviewedOnly = e.target.checked;
+  refilter();
+  toast(state.unreviewedOnly
+    ? `${state.view.length} sessions still unreviewed`
+    : `Showing all ${state.view.length} sessions`);
+};
+
 (async function boot() {
   await loadAll();
+  applyFilter();
+  renderBatchFilter();
   renderHeader(); renderSession(); updateCounts(); updatePos();
   poll();
 })();

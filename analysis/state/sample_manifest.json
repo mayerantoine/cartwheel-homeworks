@@ -1,0 +1,322 @@
+{
+  "source": "/Users/mayerantoine/Code/cartwheel-homeworks/traces/support_traces_gpt6luna.json",
+  "k": 30,
+  "strategy": "diversity",
+  "selected_at": "2026-09-26T15:12:05.455531+00:00",
+  "picks": [
+    {
+      "trace_id": "95c3a1dc34ce6951417fb27c6b4cea4c",
+      "reason": "cluster 0 representative"
+    },
+    {
+      "trace_id": "d366cb5d449f563cdf227ced5839ed1b",
+      "reason": "cluster 1 representative"
+    },
+    {
+      "trace_id": "60969e71e3a1d3ea1824aa9f42bbc25c",
+      "reason": "cluster 2 representative"
+    },
+    {
+      "trace_id": "1c78c4d38348e642c62816602a05e4ff",
+      "reason": "cluster 3 representative"
+    },
+    {
+      "trace_id": "b352ba4b169ee64abb1986b8c187ecee",
+      "reason": "cluster 4 representative"
+    },
+    {
+      "trace_id": "52eadc24952e259e0fb1e5fa3804b96a",
+      "reason": "cluster 5 representative"
+    },
+    {
+      "trace_id": "3ed75310158d571b611584d2b77f8615",
+      "reason": "cluster 6 representative"
+    },
+    {
+      "trace_id": "a5505cefdcca493ab0b76e5104b6a90c",
+      "reason": "cluster 7 representative"
+    },
+    {
+      "trace_id": "9d891041e22a39b4bba6a4cc1f7e00d4",
+      "reason": "cluster 8 representative"
+    },
+    {
+      "trace_id": "24decf58129b4acfe01d204b600a80ec",
+      "reason": "cluster 9 representative"
+    },
+    {
+      "trace_id": "ee07b42696d100c37ac8b37f35c6680c",
+      "reason": "cluster 0 representative"
+    },
+    {
+      "trace_id": "4cfe768f5b7088d9b4a9f70ac912c499",
+      "reason": "cluster 1 representative"
+    },
+    {
+      "trace_id": "ea37fa17a815c4036a28c9d4d23bc017",
+      "reason": "cluster 2 representative"
+    },
+    {
+      "trace_id": "1f933111aa5093657d432ca48c53bf5f",
+      "reason": "cluster 3 representative"
+    },
+    {
+      "trace_id": "6c9bb85a1ba2311d33179fc8502e1128",
+      "reason": "cluster 4 representative"
+    },
+    {
+      "trace_id": "9b22fbcc56a0d1e54c157845b091f28e",
+      "reason": "cluster 5 representative"
+    },
+    {
+      "trace_id": "d5657a4586ae621a598467ce9ed8af8c",
+      "reason": "cluster 6 representative"
+    },
+    {
+      "trace_id": "337a931574f87afe5c1e9a4091e61397",
+      "reason": "cluster 7 representative"
+    },
+    {
+      "trace_id": "13c12dd0df39c3f97d95a4caf59905d2",
+      "reason": "cluster 8 representative"
+    },
+    {
+      "trace_id": "229004eb5f10220b095102fbdf9398be",
+      "reason": "cluster 9 representative"
+    },
+    {
+      "trace_id": "333e30650dd72876ffbc44fd37ca3deb",
+      "reason": "random pick"
+    },
+    {
+      "trace_id": "4ba36763e3179d52d5068f7e709ddb6b",
+      "reason": "random pick"
+    },
+    {
+      "trace_id": "5f86dbdd3ce8b1c95d0eedda3f342fda",
+      "reason": "random pick"
+    },
+    {
+      "trace_id": "387ffd5c2f6c0e38b618d76761130fe7",
+      "reason": "random pick"
+    },
+    {
+      "trace_id": "85615acf216af17d8bebe7af36e8d7bd",
+      "reason": "random pick"
+    },
+    {
+      "trace_id": "5dd67597c6a933ef12eb499132f1255b",
+      "reason": "random pick"
+    },
+    {
+      "trace_id": "4881f789e74c9ac39a0206ba34884729",
+      "reason": "random pick"
+    },
+    {
+      "trace_id": "c74c670e8c5b338955408496669da759",
+      "reason": "random pick"
+    },
+    {
+      "trace_id": "1f4a02ba2ed291cbb8da4e0f916d2098",
+      "reason": "random pick"
+    },
+    {
+      "trace_id": "2145a33ad18dcf9f43f6ce3097540827",
+      "reason": "random pick"
+    }
+  ],
+  "traces": {
+    "95c3a1dc34ce6951417fb27c6b4cea4c": {
+      "batch": "batch1_uniform_and_clusters",
+      "reason": "cluster 0 representative"
+    },
+    "d366cb5d449f563cdf227ced5839ed1b": {
+      "batch": "batch1_uniform_and_clusters",
+      "reason": "cluster 1 representative"
+    },
+    "60969e71e3a1d3ea1824aa9f42bbc25c": {
+      "batch": "batch1_uniform_and_clusters",
+      "reason": "cluster 2 representative"
+    },
+    "1c78c4d38348e642c62816602a05e4ff": {
+      "batch": "batch1_uniform_and_clusters",
+      "reason": "cluster 3 representative"
+    },
+    "b352ba4b169ee64abb1986b8c187ecee": {
+      "batch": "batch1_uniform_and_clusters",
+      "reason": "cluster 4 representative"
+    },
+    "52eadc24952e259e0fb1e5fa3804b96a": {
+      "batch": "batch1_uniform_and_clusters",
+      "reason": "cluster 5 representative"
+    },
+    "3ed75310158d571b611584d2b77f8615": {
+      "batch": "batch1_uniform_and_clusters",
+      "reason": "cluster 6 representative"
+    },
+    "a5505cefdcca493ab0b76e5104b6a90c": {
+      "batch": "batch1_uniform_and_clusters",
+      "reason": "cluster 7 representative"
+    },
+    "9d891041e22a39b4bba6a4cc1f7e00d4": {
+      "batch": "batch1_uniform_and_clusters",
+      "reason": "cluster 8 representative"
+    },
+    "24decf58129b4acfe01d204b600a80ec": {
+      "batch": "batch1_uniform_and_clusters",
+      "reason": "cluster 9 representative"
+    },
+    "ee07b42696d100c37ac8b37f35c6680c": {
+      "batch": "batch1_uniform_and_clusters",
+      "reason": "cluster 0 representative"
+    },
+    "4cfe768f5b7088d9b4a9f70ac912c499": {
+      "batch": "batch1_uniform_and_clusters",
+      "reason": "cluster 1 representative"
+    },
+    "ea37fa17a815c4036a28c9d4d23bc017": {
+      "batch": "batch1_uniform_and_clusters",
+      "reason": "cluster 2 representative"
+    },
+    "1f933111aa5093657d432ca48c53bf5f": {
+      "batch": "batch1_uniform_and_clusters",
+      "reason": "cluster 3 representative"
+    },
+    "6c9bb85a1ba2311d33179fc8502e1128": {
+      "batch": "batch1_uniform_and_clusters",
+      "reason": "cluster 4 representative"
+    },
+    "9b22fbcc56a0d1e54c157845b091f28e": {
+      "batch": "batch1_uniform_and_clusters",
+      "reason": "cluster 5 representative"
+    },
+    "d5657a4586ae621a598467ce9ed8af8c": {
+      "batch": "batch1_uniform_and_clusters",
+      "reason": "cluster 6 representative"
+    },
+    "337a931574f87afe5c1e9a4091e61397": {
+      "batch": "batch1_uniform_and_clusters",
+      "reason": "cluster 7 representative"
+    },
+    "13c12dd0df39c3f97d95a4caf59905d2": {
+      "batch": "batch1_uniform_and_clusters",
+      "reason": "cluster 8 representative"
+    },
+    "229004eb5f10220b095102fbdf9398be": {
+      "batch": "batch1_uniform_and_clusters",
+      "reason": "cluster 9 representative"
+    },
+    "333e30650dd72876ffbc44fd37ca3deb": {
+      "batch": "batch1_uniform_and_clusters",
+      "reason": "random pick"
+    },
+    "4ba36763e3179d52d5068f7e709ddb6b": {
+      "batch": "batch1_uniform_and_clusters",
+      "reason": "random pick"
+    },
+    "5f86dbdd3ce8b1c95d0eedda3f342fda": {
+      "batch": "batch1_uniform_and_clusters",
+      "reason": "random pick"
+    },
+    "387ffd5c2f6c0e38b618d76761130fe7": {
+      "batch": "batch1_uniform_and_clusters",
+      "reason": "random pick"
+    },
+    "85615acf216af17d8bebe7af36e8d7bd": {
+      "batch": "batch1_uniform_and_clusters",
+      "reason": "random pick"
+    },
+    "5dd67597c6a933ef12eb499132f1255b": {
+      "batch": "batch1_uniform_and_clusters",
+      "reason": "random pick"
+    },
+    "4881f789e74c9ac39a0206ba34884729": {
+      "batch": "batch1_uniform_and_clusters",
+      "reason": "random pick"
+    },
+    "c74c670e8c5b338955408496669da759": {
+      "batch": "batch1_uniform_and_clusters",
+      "reason": "random pick"
+    },
+    "1f4a02ba2ed291cbb8da4e0f916d2098": {
+      "batch": "batch1_uniform_and_clusters",
+      "reason": "random pick"
+    },
+    "2145a33ad18dcf9f43f6ce3097540827": {
+      "batch": "batch1_uniform_and_clusters",
+      "reason": "random pick"
+    },
+    "108d6b0d353c3bf11b2b2409db79d89a": {
+      "batch": "batch0_sequential_browse",
+      "reason": "read in scenario order before batching"
+    },
+    "156e5fffd3874a21a1a44bf786a0aabd": {
+      "batch": "batch0_sequential_browse",
+      "reason": "read in scenario order before batching"
+    },
+    "25e8874311cdb27ee3fee977bcd9de75": {
+      "batch": "batch0_sequential_browse",
+      "reason": "read in scenario order before batching"
+    },
+    "36dff227db559665888edb42e1dac6f9": {
+      "batch": "batch0_sequential_browse",
+      "reason": "read in scenario order before batching"
+    },
+    "651c44df12a2628a2c346d6a63620277": {
+      "batch": "batch0_sequential_browse",
+      "reason": "read in scenario order before batching"
+    },
+    "6803258b75ab0614c023428a87f8c08d": {
+      "batch": "batch0_sequential_browse",
+      "reason": "read in scenario order before batching"
+    },
+    "7438b75df6947397a1d2bf36b082fea2": {
+      "batch": "batch0_sequential_browse",
+      "reason": "read in scenario order before batching"
+    },
+    "7f45dd50a5ef8293574b650c6d0e435a": {
+      "batch": "batch0_sequential_browse",
+      "reason": "read in scenario order before batching"
+    },
+    "97021a4880dcc7c37fbd86f55962b3a9": {
+      "batch": "batch0_sequential_browse",
+      "reason": "read in scenario order before batching"
+    },
+    "a3f59b46ae920a8885bd8c82645ea3b4": {
+      "batch": "batch0_sequential_browse",
+      "reason": "read in scenario order before batching"
+    },
+    "bbe030f1b92a27f9f9d0df9f43c7ca3c": {
+      "batch": "batch0_sequential_browse",
+      "reason": "read in scenario order before batching"
+    },
+    "cbc9738957edff7745ae48e007561e79": {
+      "batch": "batch0_sequential_browse",
+      "reason": "read in scenario order before batching"
+    },
+    "dc8579f35a01ccce812d4f14b9aced09": {
+      "batch": "batch0_sequential_browse",
+      "reason": "read in scenario order before batching"
+    },
+    "e0739d37b6d69ced7dc477bda7afa83d": {
+      "batch": "batch0_sequential_browse",
+      "reason": "read in scenario order before batching"
+    },
+    "e21edca83f9586b41d8e103c1a1c033d": {
+      "batch": "batch0_sequential_browse",
+      "reason": "read in scenario order before batching"
+    },
+    "f960dcf3a7f587abbfb8fa8d3389c421": {
+      "batch": "batch0_sequential_browse",
+      "reason": "read in scenario order before batching"
+    },
+    "fa997a171e6eec09d8b615ad832ae423": {
+      "batch": "batch0_sequential_browse",
+      "reason": "read in scenario order before batching"
+    },
+    "fdc67a88bd7f0ab07fe9ef6fe91ff83e": {
+      "batch": "batch0_sequential_browse",
+      "reason": "read in scenario order before batching"
+    }
+  }
+}

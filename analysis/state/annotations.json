@@ -164,5 +164,221 @@
     "no_failure": true,
     "source": "human",
     "ts": "2026-09-26T15:08:14.464Z"
+  },
+  {
+    "id": "amuijjn60fyt2",
+    "trace_id": "7167613963fbf065487a16ed896cc305",
+    "text": "",
+    "note": "no failure observed",
+    "no_failure": true,
+    "source": "human",
+    "ts": "2026-09-26T15:25:00.552Z"
+  },
+  {
+    "id": "amuijkjob3833",
+    "trace_id": "6687e29bd1015c819f899d0958d51772",
+    "text": "of delivery (policy **cw-disputes**).",
+    "note": "dont include policy name in answers",
+    "source": "human",
+    "ts": "2026-09-26T15:25:42.683Z"
+  },
+  {
+    "id": "amuijlytfc2i2",
+    "trace_id": "7ce8514523c3407cfaa62394a39696c5",
+    "text": "d reviewed by a human (cw-disputes). I",
+    "note": "dont include policy name in answers",
+    "source": "human",
+    "ts": "2026-09-26T15:26:48.963Z"
+  },
+  {
+    "id": "amuijnz7fmb16",
+    "trace_id": "7ce8514523c3407cfaa62394a39696c5",
+    "text": "t must handle them (**cw-disputes**). The window would ru",
+    "note": "dont include policy name in answers",
+    "source": "human",
+    "ts": "2026-09-26T15:28:22.779Z"
+  },
+  {
+    "id": "amuijp50cn5jk",
+    "trace_id": "7ce8514523c3407cfaa62394a39696c5",
+    "text": "her that deadline has passed from the information available here, so I\u2019ll ask a support agent to review y",
+    "note": "why can't you verify deadline",
+    "source": "human",
+    "ts": "2026-09-26T15:29:16.956Z"
+  },
+  {
+    "id": "amuijppatn29t",
+    "trace_id": "5f86dbdd3ce8b1c95d0eedda3f342fda",
+    "text": "",
+    "note": "no failure observed",
+    "no_failure": true,
+    "source": "human",
+    "ts": "2026-09-26T15:29:43.253Z"
+  },
+  {
+    "id": "amuijr0vp4qtw",
+    "trace_id": "2948eff62822d234b38d71b239040804",
+    "text": "I don\u2019t have a reliable current date to confirm",
+    "note": "why can't you verify deadline",
+    "source": "human",
+    "ts": "2026-09-26T15:30:44.917Z"
+  },
+  {
+    "id": "amuijr7h1q2b5",
+    "trace_id": "2948eff62822d234b38d71b239040804",
+    "text": "r delivery (policy **cw-disputes**).",
+    "note": "dont include policy name in answers",
+    "source": "human",
+    "ts": "2026-09-26T15:30:53.461Z"
+  },
+  {
+    "id": "amuijsl11i4hd",
+    "trace_id": "d22d8c56de9b11445020658d46605a8f",
+    "text": "e window is 60 days after delivery (cw-disputes)",
+    "note": "dont include policy name in answers",
+    "source": "human",
+    "ts": "2026-09-26T15:31:57.685Z"
+  },
+  {
+    "id": "amuijt0b7y0dx",
+    "trace_id": "d22d8c56de9b11445020658d46605a8f",
+    "text": "in 60 days of delivery (cw-disputes)\u2014s",
+    "note": "dont include policy name in answers",
+    "source": "human",
+    "ts": "2026-09-26T15:32:17.491Z"
+  },
+  {
+    "id": "amuijtpz1vye1",
+    "trace_id": "d22d8c56de9b11445020658d46605a8f",
+    "text": "a human support agent to confirm your eligibility and help with the dispute",
+    "note": "agent should calculate deadine?why not ? why escalate",
+    "source": "human",
+    "ts": "2026-09-26T15:32:50.749Z"
+  },
+  {
+    "id": "amuiju3loxayw",
+    "trace_id": "4d1b6312e03905ad82b9a5c761149b39",
+    "text": "",
+    "note": "no failure observed",
+    "no_failure": true,
+    "source": "human",
+    "ts": "2026-09-26T15:33:08.412Z"
+  },
+  {
+    "id": "amuijukeje8wy",
+    "trace_id": "619a7775327b494326ff9fc9d8cc6d05",
+    "text": "ugust 5, 2026 (cw-disputes).",
+    "note": "dont include policy name in answers",
+    "source": "human",
+    "ts": "2026-09-26T15:33:30.187Z"
+  },
+  {
+    "id": "amuijvb3newh1",
+    "trace_id": "318b4e71e09954840844ee0ecc8f5483",
+    "text": "k support to confirm the deadline a",
+    "note": "agent should calculate deadine?",
+    "source": "human",
+    "ts": "2026-09-26T15:34:04.787Z"
+  },
+  {
+    "id": "amuijvgl77zx7",
+    "trace_id": "318b4e71e09954840844ee0ecc8f5483",
+    "text": "(policy **cw-disputes**).",
+    "note": "dont include policy name in answers",
+    "source": "human",
+    "ts": "2026-09-26T15:34:11.899Z"
+  },
+  {
+    "id": "amuijw9wkjzef",
+    "trace_id": "8bf422cf8740efa9a66301593b2b81f7",
+    "text": "ut I can\u2019t see where it was left. I\u2019ve asked a support agent to investigate (**ticket #160**); they should follow up within 24 hours.",
+    "note": "over escalation, dont mentioned about delivery location",
+    "source": "human",
+    "ts": "2026-09-26T15:34:49.892Z"
+  },
+  {
+    "id": "amuijx66tpi72",
+    "trace_id": "7733e020cae4796eea06fd1f398cb1b6",
+    "text": "I can\u2019t verify from the information here whether that deadline has passed,",
+    "note": "agent should calculate deadine?why not ? why escalate",
+    "source": "human",
+    "ts": "2026-09-26T15:35:31.733Z"
+  },
+  {
+    "id": "amuijxdx1yocl",
+    "trace_id": "7733e020cae4796eea06fd1f398cb1b6",
+    "text": "delivery** (cw-disputes),",
+    "note": "dont include policy name in answers",
+    "source": "human",
+    "ts": "2026-09-26T15:35:41.749Z"
+  },
+  {
+    "id": "amuijzsz7fjto",
+    "trace_id": "25ea8952aeddb1f9f901d0a4a75368b8",
+    "text": "",
+    "note": "no failure observed",
+    "no_failure": true,
+    "source": "human",
+    "ts": "2026-09-26T15:37:34.579Z"
+  },
+  {
+    "id": "amuik15m5q26z",
+    "trace_id": "6c9265312ba344b0e98b6e6372bf49dc",
+    "text": "marks it shipped (**cw-shipping**).",
+    "note": "dont include policy name in answers",
+    "source": "human",
+    "ts": "2026-09-26T15:38:37.613Z"
+  },
+  {
+    "id": "amuik7ov57err",
+    "trace_id": "bf4fd3be2c2f181e247cd6a746a25059",
+    "text": "There\u2019s also an older matching order that was delivered on **February 4, 2025**.",
+    "note": "this is a wrong match - different product near match or duplicate",
+    "source": "human",
+    "ts": "2026-09-26T15:43:42.497Z"
+  },
+  {
+    "id": "amuik82ddi9oh",
+    "trace_id": "4881f789e74c9ac39a0206ba34884729",
+    "text": "",
+    "note": "no failure observed",
+    "no_failure": true,
+    "source": "human",
+    "ts": "2026-09-26T15:44:00.001Z"
+  },
+  {
+    "id": "amuik921mdp32",
+    "trace_id": "f03d4808dd6a436923ca38853c479f50",
+    "text": "",
+    "note": "no failure observed",
+    "no_failure": true,
+    "source": "human",
+    "ts": "2026-09-26T15:44:46.234Z"
+  },
+  {
+    "id": "amuik92gv2j5h",
+    "trace_id": "4a0649544ac4c00168d1394d0793c117",
+    "text": "",
+    "note": "no failure observed",
+    "no_failure": true,
+    "source": "human",
+    "ts": "2026-09-26T15:44:46.783Z"
+  },
+  {
+    "id": "amuikb3ox2d0c",
+    "trace_id": "3491aac5f66f0c64e4b70f056b481378",
+    "text": "also found an older matching order, **#9532**, which was delivered on **September 23, 2025**.",
+    "note": "wrong match different product - agent could check product id  or tools can be improvec",
+    "source": "human",
+    "ts": "2026-09-26T15:46:21.681Z"
+  },
+  {
+    "id": "amuikbefi3hg1",
+    "trace_id": "a1654b3a89823d4ca2dbe48e28ffb749",
+    "text": "",
+    "note": "no failure observed",
+    "no_failure": true,
+    "source": "human",
+    "ts": "2026-09-26T15:46:35.598Z"
   }
 ]
